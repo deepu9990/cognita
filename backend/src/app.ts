@@ -9,6 +9,9 @@ import { conversationRouter } from "./routes/conversation.routes.js";
 
 export const app = express();
 
+// Render terminates TLS upstream; without this, secure cookies and rate limiting misbehave.
+app.set("trust proxy", 1);
+
 const configuredOrigins = (process.env.CORS_ORIGIN ?? "")
   .split(",")
   .map((origin) => origin.trim())

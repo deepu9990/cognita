@@ -1,6 +1,5 @@
-export const API_URL = (
-  import.meta.env.VITE_API_URL ?? "http://localhost:5000"
-).replace(/\/$/, "");
+// Empty means same-origin, which lets the dev proxy keep cookies first-party.
+export const API_URL = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
 
 export class ApiError extends Error {
   constructor(
