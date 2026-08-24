@@ -1,0 +1,146 @@
+import { useState } from "react";
+import { BrainCircuit, ChevronDown, Copy, CopyCheck } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { ChatMessage } from "../types/chat.types";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "./ui/collapsible";
+
+interface ParsedAssistantContent {
+  answer: string;
+  thoughts: string[];
+}
+
+function parseAssistantContent(raw: string): ParsedAssistantContent {
+  const thoughts: string[] = [];
+  let answer = "";
+  let cursor = 0;
+  const thinkBlockPattern = /<think>([\s\S]*?)<\/think>/gi;
+
+  for (const match of raw.matchAll(thinkBlockPattern)) {
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+    answer += raw.slice(cursor, start);
+    thoughts.push(match[1].trim());
+    cursor = end;
+  }
+
+  const remainder = raw.slice(cursor);
+  const openThinkIndex = remainder.toLowerCase().lastIndexOf("<think>");
+
+  if (openThinkIndex >= 0) {
+    answer += remainder.slice(0, openThinkIndex);
+    thoughts.push(remainder.slice(openThinkIndex + 7).trim());
+  } else {
+    answer += remainder;
+  }
+
+  return {
+    answer: answer.trimStart(),
+    thoughts: thoughts.filter(Boolean),
+  };
+}
+
+interface MessageBubbleProps {
+  message: ChatMessage;
+  isStreaming?: boolean;
+}
+
+export function MessageBubble({
+  message,
+  isStreaming = false,
+}: MessageBubbleProps) {
+  const [copied, setCopied] = useState(false);
+  const isUser = message.role === "user";
+  const parsedAssistant = isUser
+    ? null
+    : parseAssistantContent(message.content);
+  const displayContent = isUser
+    ? message.content
+    : (parsedAssistant?.answer ?? message.content);
+  const thinkingBlocks = parsedAssistant?.thoughts ?? [];
+
+  async function copyMessage() {
+    await navigator.clipboard.writeText(displayContent || message.content);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  }
+
+  return (
+    <article className="animate-fade-in-up">
+      <div
+        className={`mb-2 flex items-center gap-2 ${isUser ? "justify-end" : ""}`}
+      >
+        <span
+          className={`text-[11px] uppercase tracking-[0.12em] ${isUser ? "text-muted-foreground" : "text-primary"}`}
+        >
+          {isUser ? "You" : "AI"}
+        </span>
+        {!isUser && displayContent && (
+          <button
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            type="button"
+            onClick={copyMessage}
+            aria-label="Copy response"
+          >
+            {copied ? (
+              <CopyCheck className="h-3.5 w-3.5" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
+            {copied ? "Copied" : "Copy"}
+          </button>
+        )}
+      </div>
+
+      <div
+        className={
+          isUser
+            ? "ml-auto w-fit max-w-[90%] rounded-2xl rounded-br-sm border border-border/70 bg-card/90 px-4 py-3 text-[15px] leading-7 text-foreground shadow-sm"
+            : "max-w-[95%] text-[15px] leading-7 text-foreground"
+        }
+      >
+        {isUser ? (
+          <p>{displayContent}</p>
+        ) : displayContent ? (
+          <>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              className="message-prose"
+            >
+              {displayContent}
+            </ReactMarkdown>
+            {thinkingBlocks.length > 0 && (
+              <Collapsible className="mt-3 rounded-xl border border-border/70 bg-muted/45">
+                <CollapsibleTrigger className="group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs text-muted-foreground transition hover:bg-muted/70">
+                  <span className="inline-flex items-center gap-2 uppercase tracking-[0.1em]">
+                    <BrainCircuit className="h-3.5 w-3.5 text-primary" />
+                    LLM thinking
+                  </span>
+                  <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="border-t border-border/70 px-3 pb-3 pt-2">
+                  {thinkingBlocks.map((thought, index) => (
+                    <p
+                      key={`${message.id}-thinking-${index}`}
+                      className="whitespace-pre-wrap rounded-lg bg-background/70 p-2.5 text-xs leading-6 text-muted-foreground"
+                    >
+                      {thought}
+                    </p>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </>
+        ) : isStreaming ? (
+          <span className="text-xs uppercase tracking-[0.11em] text-muted-foreground">
+            Thinking...
+          </span>
+        ) : null}
+      </div>
+    </article>
+  );
+}

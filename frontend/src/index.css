@@ -1,0 +1,100 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 38 43% 95%;
+    --foreground: 30 10% 13%;
+    --card: 35 42% 98%;
+    --card-foreground: 30 10% 13%;
+    --border: 28 18% 84%;
+    --muted: 34 24% 92%;
+    --muted-foreground: 24 8% 42%;
+    --accent: 18 79% 55%;
+    --accent-foreground: 36 45% 97%;
+    --primary: 15 85% 57%;
+    --primary-foreground: 36 45% 97%;
+    --destructive: 2 71% 56%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+
+  body {
+    @apply m-0 bg-background text-foreground antialiased;
+    font-family: "Space Grotesk", sans-serif;
+    background-image:
+      radial-gradient(
+        circle at 8% -8%,
+        rgba(254, 186, 122, 0.5),
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 90% 0%,
+        rgba(248, 113, 113, 0.28),
+        transparent 28%
+      ),
+      radial-gradient(
+        circle at 74% 82%,
+        rgba(110, 231, 183, 0.21),
+        transparent 34%
+      );
+  }
+
+  code,
+  pre,
+  kbd {
+    font-family: "JetBrains Mono", monospace;
+  }
+}
+
+@layer utilities {
+  .message-prose {
+    @apply text-[15px] leading-7 text-foreground/90;
+  }
+
+  .message-prose p {
+    @apply m-0;
+  }
+
+  .message-prose p + p,
+  .message-prose ul + p,
+  .message-prose pre + p {
+    @apply mt-4;
+  }
+
+  .message-prose ul,
+  .message-prose ol {
+    @apply my-3 pl-6;
+  }
+
+  .message-prose li + li {
+    @apply mt-1;
+  }
+
+  .message-prose code {
+    @apply rounded bg-muted px-1.5 py-0.5 text-[0.85em];
+  }
+
+  .message-prose pre {
+    @apply overflow-x-auto rounded-xl border border-border/70 bg-zinc-900 p-4 text-zinc-100;
+  }
+
+  .message-prose pre code {
+    @apply bg-transparent p-0 text-inherit;
+  }
+
+  .message-prose a {
+    @apply text-primary underline-offset-4 hover:underline;
+  }
+}
