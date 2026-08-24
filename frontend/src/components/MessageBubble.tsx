@@ -72,12 +72,12 @@ export function MessageBubble({
   return (
     <article className="animate-fade-in-up">
       <div
-        className={`mb-2 flex items-center gap-2 ${isUser ? "justify-end" : ""}`}
+        className={`mb-2.5 flex items-center gap-2 ${isUser ? "justify-end" : ""}`}
       >
         <span
-          className={`text-[11px] uppercase tracking-[0.12em] ${isUser ? "text-muted-foreground" : "text-primary"}`}
+          className={`text-[12px] uppercase tracking-[0.12em] ${isUser ? "text-muted-foreground" : "text-primary"}`}
         >
-          {isUser ? "You" : "AI"}
+          {isUser ? "You" : "Cognita"}
         </span>
         {!isUser && displayContent && (
           <button
@@ -99,8 +99,8 @@ export function MessageBubble({
       <div
         className={
           isUser
-            ? "ml-auto w-fit max-w-[90%] rounded-2xl rounded-br-sm border border-border/70 bg-card/90 px-4 py-3 text-[15px] leading-7 text-foreground shadow-sm"
-            : "max-w-[95%] text-[15px] leading-7 text-foreground"
+            ? "ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-sm border border-border bg-muted px-5 py-3.5 text-[15px] leading-7 text-foreground"
+            : "max-w-3xl text-[15px] leading-7 text-foreground"
         }
       >
         {isUser ? (
@@ -114,19 +114,19 @@ export function MessageBubble({
               {displayContent}
             </ReactMarkdown>
             {thinkingBlocks.length > 0 && (
-              <Collapsible className="mt-3 rounded-xl border border-border/70 bg-muted/45">
-                <CollapsibleTrigger className="group flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-xs text-muted-foreground transition hover:bg-muted/70">
+              <Collapsible className="mt-4 rounded-xl border border-border bg-muted">
+                <CollapsibleTrigger className="group flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-left text-xs text-muted-foreground transition hover:text-foreground">
                   <span className="inline-flex items-center gap-2 uppercase tracking-[0.1em]">
                     <BrainCircuit className="h-3.5 w-3.5 text-primary" />
                     LLM thinking
                   </span>
                   <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
                 </CollapsibleTrigger>
-                <CollapsibleContent className="border-t border-border/70 px-3 pb-3 pt-2">
+                <CollapsibleContent className="border-t border-border px-4 pb-4 pt-3">
                   {thinkingBlocks.map((thought, index) => (
                     <p
                       key={`${message.id}-thinking-${index}`}
-                      className="whitespace-pre-wrap rounded-lg bg-background/70 p-2.5 text-xs leading-6 text-muted-foreground"
+                      className="whitespace-pre-wrap rounded-lg bg-background p-3.5 text-xs leading-6 text-muted-foreground"
                     >
                       {thought}
                     </p>

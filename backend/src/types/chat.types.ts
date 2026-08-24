@@ -7,6 +7,8 @@ export interface ChatMessage {
 
 export interface ChatRequestBody {
   messages: ChatMessage[];
+  conversationId?: string;
+  temporary?: boolean;
 }
 
 export interface ApiError {

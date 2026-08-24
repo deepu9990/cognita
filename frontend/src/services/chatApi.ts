@@ -1,8 +1,5 @@
+import { API_URL, apiFetch } from "./apiClient";
 import type { ChatMessage } from "../types/chat.types";
-
-const API_URL = (
-  import.meta.env.VITE_API_URL ?? "http://localhost:5000"
-).replace(/\/$/, "");
 
 interface StreamEvent {
   content: string;
@@ -15,10 +12,26 @@ export interface HealthStatus {
   host: string | null;
 }
 
+export interface StreamMeta {
+  conversationId: string;
+  title?: string;
+}
+
+export interface StreamOptions {
+  conversationId?: string;
+  temporary?: boolean;
+  onChunk: (content: string) => void;
+  onMeta?: (meta: StreamMeta) => void;
+  signal?: AbortSignal;
+}
+
 export async function fetchHealthStatus(
   signal?: AbortSignal,
 ): Promise<HealthStatus> {
-  const response = await fetch(`${API_URL}/api/health`, { signal });
+  const response = await fetch(`${API_URL}/api/health`, {
+    signal,
+    credentials: "include",
+  });
   if (!response.ok) throw new Error(await getError(response));
   return (await response.json()) as HealthStatus;
 }
@@ -27,7 +40,7 @@ export async function sendMessage(
   messages: ChatMessage[],
   signal?: AbortSignal,
 ): Promise<string> {
-  const response = await fetch(`${API_URL}/api/chat`, {
+  const response = await apiFetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -42,10 +55,11 @@ export async function sendMessage(
 
 export async function streamChat(
   messages: ChatMessage[],
-  onChunk: (content: string) => void,
-  signal?: AbortSignal,
+  options: StreamOptions,
 ): Promise<void> {
-  const response = await fetch(`${API_URL}/api/chat/stream`, {
+  const { conversationId, temporary, onChunk, onMeta, signal } = options;
+
+  const response = await apiFetch("/api/chat/stream", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -53,6 +67,8 @@ export async function streamChat(
     },
     body: JSON.stringify({
       messages: messages.map(({ role, content }) => ({ role, content })),
+      conversationId,
+      temporary,
     }),
     signal,
   });
@@ -79,6 +95,10 @@ export async function streamChat(
         if (event.includes("event: error")) {
           const parsed = JSON.parse(data) as { error?: string };
           throw new Error(parsed.error ?? "The stream was interrupted.");
+        }
+        if (event.includes("event: meta")) {
+          onMeta?.(JSON.parse(data) as StreamMeta);
+          continue;
         }
         const parsed = JSON.parse(data) as StreamEvent;
         onChunk(parsed.content);

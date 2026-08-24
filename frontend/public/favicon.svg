@@ -1,0 +1,33 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 32 32"
+  width="32"
+  height="32"
+  role="img"
+  aria-label="Cognita"
+>
+  <defs>
+    <linearGradient
+      id="cognita-favicon"
+      x1="16"
+      y1="5"
+      x2="16"
+      y2="27"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop offset="0" stop-color="#A1A1AA" />
+      <stop offset="1" stop-color="#18181B" />
+    </linearGradient>
+  </defs>
+
+  <g fill="url(#cognita-favicon)">
+    <circle cx="21.74" cy="7.81" r="1.5" opacity="0.5" />
+    <circle cx="16.00" cy="6.00" r="1.8" opacity="0.6" />
+    <circle cx="10.97" cy="7.36" r="2.1" opacity="0.7" />
+    <circle cx="7.10" cy="11.43" r="2.4" opacity="0.78" />
+    <circle cx="6.00" cy="16.00" r="2.6" opacity="0.85" />
+    <circle cx="7.10" cy="20.57" r="2.8" opacity="0.9" />
+    <circle cx="10.97" cy="24.64" r="3.0" opacity="0.95" />
+    <circle cx="16.00" cy="26.00" r="3.1" opacity="1" />
+  </g>
+</svg>

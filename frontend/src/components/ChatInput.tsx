@@ -38,9 +38,9 @@ export function ChatInput({
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 pb-4 sm:px-6 sm:pb-6">
+    <div className="w-full max-w-[65vw] mx-auto px-6 pb-6 sm:px-10">
       <form
-        className="group flex items-end gap-3 rounded-2xl border border-border/80 bg-card/85 p-3 shadow-sm backdrop-blur transition focus-within:border-primary/45 focus-within:shadow-glow"
+        className="group flex items-end gap-3 rounded-2xl border border-border bg-card p-3.5 shadow-sm transition focus-within:border-primary/50 focus-within:shadow-glow"
         onSubmit={(event) => {
           event.preventDefault();
           onSubmit();
@@ -55,7 +55,7 @@ export function ChatInput({
           rows={1}
           disabled={disabled}
           aria-label="Message"
-          className="max-h-44 min-h-[44px] w-full resize-none bg-transparent px-1 py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground"
+          className="max-h-44 min-h-[44px] w-full resize-none bg-transparent px-2 py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground"
         />
         {isStreaming ? (
           <Button
@@ -81,7 +81,7 @@ export function ChatInput({
           </Button>
         )}
       </form>
-      <p className="mt-2 text-center text-[11px] text-muted-foreground">
+      <p className="mt-3 text-center text-[11px] text-muted-foreground">
         Local model · Qwen3 4B · Your conversation stays in memory
       </p>
     </div>

@@ -6,18 +6,43 @@
 
 @layer base {
   :root {
-    --background: 38 43% 95%;
-    --foreground: 30 10% 13%;
-    --card: 35 42% 98%;
-    --card-foreground: 30 10% 13%;
-    --border: 28 18% 84%;
-    --muted: 34 24% 92%;
-    --muted-foreground: 24 8% 42%;
-    --accent: 18 79% 55%;
-    --accent-foreground: 36 45% 97%;
-    --primary: 15 85% 57%;
-    --primary-foreground: 36 45% 97%;
-    --destructive: 2 71% 56%;
+    --background: 240 7% 97%;
+    --foreground: 240 6% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 6% 10%;
+    --border: 240 6% 90%;
+    --muted: 240 4% 95%;
+    --muted-foreground: 240 4% 46%;
+    --subtle-foreground: 240 5% 34%;
+    --accent: 240 5% 93%;
+    --accent-foreground: 240 6% 10%;
+    --primary: 240 6% 10%;
+    --primary-hover: 240 4% 16%;
+    --primary-foreground: 0 0% 98%;
+    --signal: 240 5% 34%;
+    --success: 142 71% 37%;
+    --warning: 32 95% 44%;
+    --destructive: 0 72% 51%;
+  }
+
+  .dark {
+    --background: 240 10% 4%;
+    --foreground: 0 0% 98%;
+    --card: 240 6% 6%;
+    --card-foreground: 0 0% 98%;
+    --border: 240 4% 16%;
+    --muted: 240 5% 8%;
+    --muted-foreground: 240 4% 46%;
+    --subtle-foreground: 240 5% 65%;
+    --accent: 240 4% 16%;
+    --accent-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-hover: 240 6% 90%;
+    --primary-foreground: 240 6% 10%;
+    --signal: 240 5% 65%;
+    --success: 142 69% 45%;
+    --warning: 38 92% 50%;
+    --destructive: 0 84% 60%;
   }
 
   * {
@@ -33,22 +58,6 @@
   body {
     @apply m-0 bg-background text-foreground antialiased;
     font-family: "Space Grotesk", sans-serif;
-    background-image:
-      radial-gradient(
-        circle at 8% -8%,
-        rgba(254, 186, 122, 0.5),
-        transparent 40%
-      ),
-      radial-gradient(
-        circle at 90% 0%,
-        rgba(248, 113, 113, 0.28),
-        transparent 28%
-      ),
-      radial-gradient(
-        circle at 74% 82%,
-        rgba(110, 231, 183, 0.21),
-        transparent 34%
-      );
   }
 
   code,
@@ -59,6 +68,30 @@
 }
 
 @layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track,
+  .scrollbar-thin::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 9999px;
+  }
+
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+  }
+
   .message-prose {
     @apply text-[15px] leading-7 text-foreground/90;
   }

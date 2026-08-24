@@ -24,7 +24,7 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
   return (
     <div
       ref={listRef}
-      className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto py-4 pr-1"
+      className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-10 overflow-y-auto py-8 pr-2"
       aria-live="polite"
     >
       {messages

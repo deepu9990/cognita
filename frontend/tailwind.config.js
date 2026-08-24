@@ -12,17 +12,22 @@ export default {
         border: "hsl(var(--border))",
         muted: "hsl(var(--muted))",
         "muted-foreground": "hsl(var(--muted-foreground))",
+        "subtle-foreground": "hsl(var(--subtle-foreground))",
         accent: "hsl(var(--accent))",
         "accent-foreground": "hsl(var(--accent-foreground))",
         primary: "hsl(var(--primary))",
+        "primary-hover": "hsl(var(--primary-hover))",
         "primary-foreground": "hsl(var(--primary-foreground))",
+        signal: "hsl(var(--signal))",
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
         destructive: "hsl(var(--destructive))",
       },
       borderRadius: {
         xl: "1rem",
       },
       boxShadow: {
-        glow: "0 20px 60px -25px hsl(var(--primary) / 0.55)",
+        glow: "0 1px 2px 0 rgb(0 0 0 / 0.05), 0 8px 24px -12px rgb(0 0 0 / 0.12)",
       },
       keyframes: {
         "fade-in-up": {

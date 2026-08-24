@@ -1,0 +1,49 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 32 32"
+  width="32"
+  height="32"
+  role="img"
+  aria-label="Cognita"
+>
+  <defs>
+    <linearGradient
+      id="cognita-mark"
+      x1="16"
+      y1="5"
+      x2="16"
+      y2="27"
+      gradientUnits="userSpaceOnUse"
+    >
+      <stop offset="0" stop-color="#71717A" />
+      <stop offset="1" stop-color="#18181B" />
+    </linearGradient>
+  </defs>
+
+  <g fill="url(#cognita-mark)">
+    <circle cx="21.74" cy="7.81" r="0.55" opacity="0.45" />
+    <circle cx="20.08" cy="6.87" r="0.60" opacity="0.47" />
+    <circle cx="18.29" cy="6.27" r="0.64" opacity="0.50" />
+    <circle cx="16.42" cy="6.01" r="0.69" opacity="0.52" />
+    <circle cx="14.53" cy="6.11" r="0.73" opacity="0.55" />
+    <circle cx="12.70" cy="6.56" r="0.78" opacity="0.57" />
+    <circle cx="10.97" cy="7.36" r="0.82" opacity="0.60" />
+    <circle cx="9.43" cy="8.46" r="0.87" opacity="0.62" />
+    <circle cx="8.12" cy="9.84" r="0.92" opacity="0.65" />
+    <circle cx="7.10" cy="11.43" r="0.96" opacity="0.67" />
+    <circle cx="6.40" cy="13.19" r="1.01" opacity="0.69" />
+    <circle cx="6.05" cy="15.05" r="1.05" opacity="0.72" />
+    <circle cx="6.05" cy="16.95" r="1.10" opacity="0.74" />
+    <circle cx="6.40" cy="18.81" r="1.14" opacity="0.77" />
+    <circle cx="7.10" cy="20.57" r="1.19" opacity="0.79" />
+    <circle cx="8.12" cy="22.16" r="1.24" opacity="0.82" />
+    <circle cx="9.43" cy="23.54" r="1.28" opacity="0.84" />
+    <circle cx="10.97" cy="24.64" r="1.33" opacity="0.87" />
+    <circle cx="12.70" cy="25.44" r="1.37" opacity="0.89" />
+    <circle cx="14.53" cy="25.89" r="1.42" opacity="0.91" />
+    <circle cx="16.42" cy="25.99" r="1.46" opacity="0.94" />
+    <circle cx="18.29" cy="25.73" r="1.51" opacity="0.96" />
+    <circle cx="20.08" cy="25.13" r="1.55" opacity="0.98" />
+    <circle cx="21.74" cy="24.19" r="1.60" opacity="1" />
+  </g>
+</svg>

@@ -1,9 +1,15 @@
-import { useEffect, useState } from "react";
-import { Bot, Sparkles, WandSparkles } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Bot, Ghost, Menu, WandSparkles } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 import { fetchHealthStatus, streamChat } from "../services/chatApi";
+import { getConversation } from "../services/conversationApi";
+import { useConversations } from "../hooks/useConversations";
 import type { ChatMessage } from "../types/chat.types";
 import { ChatInput } from "./ChatInput";
 import { MessageList } from "./MessageList";
+import { Logo } from "./Logo";
+import { Sidebar } from "./Sidebar";
+import { ThemeToggle } from "./ThemeToggle";
 import { TypingIndicator } from "./TypingIndicator";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
@@ -19,15 +25,44 @@ function makeId(): string {
 }
 
 export function ChatWindow() {
+  const { conversationId } = useParams<{ conversationId: string }>();
+  const navigate = useNavigate();
+  const { conversations, loading, refresh, remove, rename } =
+    useConversations();
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [controller, setController] = useState<AbortController | null>(null);
+  const [temporary, setTemporary] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [connectionLabel, setConnectionLabel] = useState(
     "Checking Ollama connection",
   );
   const [connectionOnline, setConnectionOnline] = useState(false);
+
+  useEffect(() => {
+    if (temporary) return;
+
+    if (!conversationId) {
+      setMessages([]);
+      return;
+    }
+
+    let cancelled = false;
+    void getConversation(conversationId)
+      .then((result) => {
+        if (!cancelled) setMessages(result.messages);
+      })
+      .catch(() => {
+        if (!cancelled) navigate("/", { replace: true });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId, navigate, temporary]);
 
   useEffect(() => {
     const signalController = new AbortController();
@@ -81,10 +116,17 @@ export function ChatWindow() {
     const nextController = new AbortController();
     setController(nextController);
 
+    let createdConversationId: string | null = null;
+
     try {
-      await streamChat(
-        history,
-        (chunk) => {
+      await streamChat(history, {
+        conversationId,
+        temporary,
+        signal: nextController.signal,
+        onMeta: (meta) => {
+          if (!conversationId) createdConversationId = meta.conversationId;
+        },
+        onChunk: (chunk) => {
           setMessages((current) =>
             current.map((message) =>
               message.id === assistantMessage.id
@@ -93,8 +135,7 @@ export function ChatWindow() {
             ),
           );
         },
-        nextController.signal,
-      );
+      });
     } catch (streamError) {
       if ((streamError as Error).name !== "AbortError") {
         setError(
@@ -108,6 +149,13 @@ export function ChatWindow() {
     } finally {
       setController(null);
       setIsStreaming(false);
+
+      if (!temporary) {
+        void refresh();
+        if (createdConversationId) {
+          navigate(`/c/${createdConversationId}`, { replace: true });
+        }
+      }
     }
   }
 
@@ -115,104 +163,177 @@ export function ChatWindow() {
     controller?.abort();
   }
 
+  const startNewChat = useCallback(() => {
+    setMessages([]);
+    setError(null);
+    setSidebarOpen(false);
+    navigate("/");
+  }, [navigate]);
+
+  const toggleTemporary = useCallback(() => {
+    setTemporary((current) => !current);
+    setMessages([]);
+    setError(null);
+    setSidebarOpen(false);
+    navigate("/");
+  }, [navigate]);
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      await remove(id);
+      if (id === conversationId) navigate("/", { replace: true });
+    },
+    [conversationId, navigate, remove],
+  );
+
   const showEmptyState = messages.length === 0;
 
   return (
-    <main className="relative flex h-full min-h-full flex-col overflow-hidden">
-      <div className="pointer-events-none absolute inset-x-0 top-[-7rem] h-56 bg-gradient-to-r from-orange-300/25 via-rose-300/30 to-emerald-300/30 blur-3xl" />
+    <div className="relative flex h-full min-h-full overflow-hidden">
+      <div className="hidden h-full w-72 shrink-0 md:block">
+        <Sidebar
+          conversations={conversations}
+          loading={loading}
+          temporary={temporary}
+          onToggleTemporary={toggleTemporary}
+          onNewChat={startNewChat}
+          onRename={rename}
+          onDelete={handleDelete}
+        />
+      </div>
 
-      <header className="relative mx-auto flex h-20 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-3">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/95 text-primary-foreground shadow-glow">
-            <Sparkles className="h-4 w-4" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold tracking-tight">Local GPT</p>
-            <p className="text-xs text-muted-foreground">
-              Private local assistant
-            </p>
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 flex md:hidden">
+          <div className="h-full w-72 bg-background shadow-xl">
+            <Sidebar
+              conversations={conversations}
+              loading={loading}
+              temporary={temporary}
+              onToggleTemporary={toggleTemporary}
+              onNewChat={startNewChat}
+              onRename={rename}
+              onDelete={handleDelete}
+            />
           </div>
-        </div>
-        <div className="hidden items-center gap-2 rounded-full border border-border/80 bg-card/65 px-3 py-1.5 text-xs text-muted-foreground sm:flex">
-          <span
-            className={`h-2 w-2 rounded-full ${
-              connectionOnline
-                ? "bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.18)]"
-                : "bg-rose-500 shadow-[0_0_0_4px_rgba(244,63,94,0.18)]"
-            }`}
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="h-full flex-1 bg-foreground/20"
+            onClick={() => setSidebarOpen(false)}
           />
-          {connectionLabel}
         </div>
-      </header>
+      )}
 
-      <section className="relative mx-auto flex w-full max-w-4xl flex-1 flex-col overflow-hidden px-4 pb-4 sm:px-6">
-        {showEmptyState ? (
-          <Card className="animate-fade-in-up mt-6 flex flex-1 items-center border-border/70 bg-card/85">
-            <CardContent className="w-full p-8 sm:p-12">
-              <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-border/80 bg-muted/70 px-3 py-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                <WandSparkles className="h-3.5 w-3.5 text-primary" />
-                Private by design
-              </p>
-              <h1 className="max-w-xl text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-6xl">
-                What are you thinking about today?
-              </h1>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
-                Run ideas, debug code, or draft content with your local model.
-                No cloud account and no server-side chat history.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-2.5">
-                {suggestions.map((suggestion) => (
-                  <Button
-                    key={suggestion}
-                    variant="secondary"
-                    className="group h-auto rounded-full border border-border/70 bg-background/85 px-4 py-2 text-left text-xs font-medium text-foreground hover:border-primary/50 hover:bg-primary/5 sm:text-sm"
-                    onClick={() => submitMessage(suggestion)}
-                  >
-                    {suggestion}
-                    <span className="ml-1 text-primary transition-transform group-hover:translate-x-0.5">
-                      ↗
-                    </span>
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <MessageList messages={messages} isStreaming={isStreaming} />
+      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-card">
+        <header className="relative flex h-[4.5rem] w-full shrink-0 items-center justify-between gap-4 border-b border-border px-6 sm:px-10">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              aria-label="Open menu"
+              onClick={() => setSidebarOpen(true)}
+              className="rounded-lg p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground md:hidden"
+            >
+              <Menu className="h-4 w-4" />
+            </button>
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-glow">
+              <Logo className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold tracking-tight">Cognita</p>
+              <p className="text-xs text-muted-foreground">Your AI workspace</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground sm:flex">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  connectionOnline
+                    ? "bg-success shadow-[0_0_0_4px_hsl(var(--success)/0.16)]"
+                    : "bg-destructive shadow-[0_0_0_4px_hsl(var(--destructive)/0.16)]"
+                }`}
+              />
+              {connectionLabel}
+            </div>
+            <ThemeToggle />
+          </div>
+        </header>
+
+        {temporary && (
+          <div className="mx-6 mt-4 flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-xs text-subtle-foreground sm:mx-10">
+            <Ghost className="h-3.5 w-3.5" />
+            Temporary chat. Nothing is saved and this disappears on refresh.
+          </div>
         )}
-      </section>
 
-      {error && (
-        <div className="mx-auto w-full max-w-4xl px-4 pb-3 sm:px-6">
-          <Card className="border-destructive/35 bg-red-50/80 text-sm text-red-800">
-            <CardContent className="space-y-1.5 p-3.5">
-              <p className="font-semibold">Connection issue</p>
-              <p>{error}</p>
-              <p className="text-xs text-red-700/80">
-                Make sure Ollama is running with the qwen3:4b model installed.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        <section className="relative flex w-full mx-auto max-w-[60vw] flex-1 flex-col overflow-hidden px-6 pb-2 sm:px-10">
+          {showEmptyState ? (
+            <Card className="animate-fade-in-up mt-8 flex flex-1 items-center border-border bg-card">
+              <CardContent className="w-full p-10 sm:p-16">
+                <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  <WandSparkles className="h-3.5 w-3.5 text-primary" />
+                  Private by design
+                </p>
+                <h1 className="max-w-xl text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-6xl">
+                  What are you thinking about today?
+                </h1>
+                <p className="mt-5 max-w-xl text-sm leading-7 text-subtle-foreground sm:text-base">
+                  Run ideas, debug code, or draft content with your local model.
+                  Your conversations stay on your own infrastructure.
+                </p>
+                <div className="mt-10 flex flex-wrap gap-3">
+                  {suggestions.map((suggestion) => (
+                    <Button
+                      key={suggestion}
+                      variant="secondary"
+                      className="group h-auto rounded-full border border-border bg-card px-4 py-2.5 text-left text-xs font-medium text-subtle-foreground hover:bg-accent hover:text-foreground sm:text-sm"
+                      onClick={() => submitMessage(suggestion)}
+                    >
+                      {suggestion}
+                      <span className="ml-1 text-primary transition-transform group-hover:translate-x-0.5">
+                        ↗
+                      </span>
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <MessageList messages={messages} isStreaming={isStreaming} />
+          )}
+        </section>
 
-      {isStreaming && (
-        <div className="mx-auto mb-2 flex w-full max-w-4xl items-center gap-2 px-4 text-xs uppercase tracking-[0.14em] text-muted-foreground sm:px-6">
-          <TypingIndicator />
-          <span className="inline-flex items-center gap-1">
-            <Bot className="h-3.5 w-3.5" /> Generating response
-          </span>
-        </div>
-      )}
+        {error && (
+          <div className="w-full px-6 pb-3 sm:px-10 max-w-[60vw] mx-auto">
+            <Card className="border-destructive/40 bg-destructive/10 text-sm text-destructive">
+              <CardContent className="space-y-1.5 p-4">
+                <p className="font-semibold">Connection issue</p>
+                <p>{error}</p>
+                <p className="text-xs opacity-80">
+                  Make sure the configured model host is running and reachable.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-      <ChatInput
-        value={input}
-        disabled={isStreaming}
-        isStreaming={isStreaming}
-        onChange={setInput}
-        onSubmit={() => submitMessage()}
-        onStop={stopGeneration}
-      />
-    </main>
+        {isStreaming && (
+          <div className="mb-2 flex w-full items-center gap-2 px-6 text-xs uppercase tracking-[0.14em] text-muted-foreground sm:px-10">
+            <TypingIndicator />
+            <span className="inline-flex items-center gap-1">
+              <Bot className="h-3.5 w-3.5" /> Generating response
+            </span>
+          </div>
+        )}
+
+        <ChatInput
+          value={input}
+          disabled={isStreaming}
+          isStreaming={isStreaming}
+          onChange={setInput}
+          onSubmit={() => submitMessage()}
+          onStop={stopGeneration}
+        />
+      </main>
+    </div>
   );
 }

@@ -1,5 +1,10 @@
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { ollamaService } from "../services/ollama.service.js";
+import {
+  appendMessage,
+  assertConversationOwner,
+  createConversation,
+} from "../services/conversation.service.js";
 import type {
   ApiError,
   ChatMessage,
@@ -58,9 +63,38 @@ function sendError(response: Response, status: number, error: string): void {
   response.status(status).json(payload);
 }
 
+function lastUserMessage(messages: ChatMessage[]): string {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index].role === "user") return messages[index].content;
+  }
+  return "";
+}
+
+/** Returns null for temporary chats so nothing is written to the database. */
+async function resolveConversation(
+  userId: string,
+  body: ChatRequestBody,
+  messages: ChatMessage[],
+): Promise<{ id: string; title?: string } | null> {
+  if (body.temporary) return null;
+
+  if (body.conversationId) {
+    await assertConversationOwner(userId, body.conversationId);
+    return { id: body.conversationId };
+  }
+
+  const created = await createConversation(
+    userId,
+    lastUserMessage(messages),
+    ollamaService.getModel(),
+  );
+  return { id: created.id, title: created.title };
+}
+
 export async function chat(
   request: Request,
   response: Response,
+  next: NextFunction,
 ): Promise<void> {
   let messages: ChatMessage[];
   try {
@@ -74,15 +108,45 @@ export async function chat(
     return;
   }
 
+  const userId = request.userId as string;
+  const body = request.body as ChatRequestBody;
+
+  let conversation: { id: string; title?: string } | null;
+  try {
+    conversation = await resolveConversation(userId, body, messages);
+    if (conversation) {
+      await appendMessage(
+        userId,
+        conversation.id,
+        "user",
+        lastUserMessage(messages),
+      );
+    }
+  } catch (error) {
+    next(error);
+    return;
+  }
+
   try {
     const result = await ollamaService.chat(messages);
-    response.json({ success: true, message: result.message });
+    const content = result.message?.content ?? "";
+
+    if (conversation && content) {
+      await appendMessage(userId, conversation.id, "assistant", content);
+    }
+
+    response.json({
+      success: true,
+      message: result.message,
+      conversationId: conversation?.id ?? null,
+      title: conversation?.title,
+    });
   } catch (error) {
     console.error("Chat request failed:", error);
     sendError(
       response,
       502,
-      "Unable to get a response from Ollama. Check that Ollama is running and the configured model is installed.",
+      "Unable to get a response from the model host. Check that it is running and the configured model is installed.",
     );
   }
 }
@@ -90,6 +154,7 @@ export async function chat(
 export async function streamChat(
   request: Request,
   response: Response,
+  next: NextFunction,
 ): Promise<void> {
   let messages: ChatMessage[];
   try {
@@ -103,7 +168,44 @@ export async function streamChat(
     return;
   }
 
+  const userId = request.userId as string;
+  const body = request.body as ChatRequestBody;
+
+  let conversation: { id: string; title?: string } | null;
+  try {
+    conversation = await resolveConversation(userId, body, messages);
+    if (conversation) {
+      await appendMessage(
+        userId,
+        conversation.id,
+        "user",
+        lastUserMessage(messages),
+      );
+    }
+  } catch (error) {
+    next(error);
+    return;
+  }
+
   let streamStarted = false;
+  let assistantText = "";
+  let persisted = false;
+
+  const persistAssistant = async (): Promise<void> => {
+    if (persisted || !conversation || !assistantText.trim()) return;
+    persisted = true;
+    try {
+      await appendMessage(userId, conversation.id, "assistant", assistantText);
+    } catch (error) {
+      console.error("Failed to persist assistant message:", error);
+    }
+  };
+
+  // A client that aborts mid-stream should still keep what was generated.
+  request.on("close", () => {
+    if (!response.writableEnded) void persistAssistant();
+  });
+
   try {
     response.status(200).set({
       "Content-Type": "text/event-stream",
@@ -113,27 +215,41 @@ export async function streamChat(
     });
     response.flushHeaders();
 
+    if (conversation) {
+      response.write(
+        `event: meta\ndata: ${JSON.stringify({
+          conversationId: conversation.id,
+          title: conversation.title,
+        })}\n\n`,
+      );
+    }
+
     for await (const chunk of ollamaService.stream(messages)) {
       streamStarted = true;
       const content = chunk.message?.content ?? "";
       if (content) {
+        assistantText += content;
         response.write(`data: ${JSON.stringify({ content })}\n\n`);
       }
     }
+
+    await persistAssistant();
     response.write("data: [DONE]\n\n");
     response.end();
   } catch (error) {
     console.error("Chat stream failed:", error);
+    await persistAssistant();
+
     if (response.headersSent && !response.writableEnded) {
       response.write(
-        `event: error\ndata: ${JSON.stringify({ error: streamStarted ? "The Ollama stream was interrupted." : "Unable to connect to Ollama." })}\n\n`,
+        `event: error\ndata: ${JSON.stringify({ error: streamStarted ? "The model stream was interrupted." : "Unable to connect to the model host." })}\n\n`,
       );
       response.end();
-    } else {
+    } else if (!response.headersSent) {
       sendError(
         response,
         502,
-        "Unable to connect to Ollama. Check that Ollama is running and the configured model is installed.",
+        "Unable to connect to the model host. Check that it is running and the configured model is installed.",
       );
     }
   }
@@ -146,7 +262,7 @@ export async function health(
   const status = await ollamaService.getAvailabilityDetails();
   response.status(status.available ? 200 : 503).json({
     success: true,
-    service: "local-gpt-backend",
+    service: "cognita-backend",
     ollama: status.available,
     model: ollamaService.getModel(),
     connection: status.connection,

@@ -7,13 +7,12 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "bg-primary text-primary-foreground shadow-glow hover:-translate-y-0.5 hover:bg-primary/90",
+        default: "bg-primary text-primary-foreground hover:bg-primary-hover",
         secondary: "bg-muted text-foreground hover:bg-muted/80",
         ghost:
           "bg-transparent text-muted-foreground hover:bg-muted/55 hover:text-foreground",
         destructive:
-          "bg-destructive text-primary-foreground hover:-translate-y-0.5 hover:bg-destructive/90",
+          "bg-destructive text-primary-foreground hover:bg-destructive/90",
       },
       size: {
         default: "h-10 px-4 py-2",
