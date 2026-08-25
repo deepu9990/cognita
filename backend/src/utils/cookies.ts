@@ -14,7 +14,6 @@ function baseOptions() {
     secure: isProduction,
     // Cross-site XHR only carries the cookie when SameSite is None, which requires Secure.
     sameSite: isProduction ? ("none" as const) : ("lax" as const),
-    domain: env.COOKIE_DOMAIN,
   };
 }
 
