@@ -37,8 +37,10 @@ export async function logout(): Promise<void> {
   );
 }
 
-export async function fetchCurrentUser(): Promise<AuthUser | null> {
-  const response = await apiFetch("/api/auth/me", {}, {});
+export async function fetchCurrentUser(
+  signal?: AbortSignal,
+): Promise<AuthUser | null> {
+  const response = await apiFetch("/api/auth/me", { signal }, {});
   if (!response.ok) return null;
   const data = (await response.json()) as AuthResponse;
   return data.user;

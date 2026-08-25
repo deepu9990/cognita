@@ -33,16 +33,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+    // A cold-starting or unreachable backend must not leave the app on a spinner.
+    const timeoutId = window.setTimeout(() => controller.abort(), 15000);
     let cancelled = false;
 
-    void authApi.fetchCurrentUser().then((currentUser) => {
-      if (cancelled) return;
-      setUser(currentUser);
-      setStatus(currentUser ? "authed" : "guest");
-    });
+    void authApi
+      .fetchCurrentUser(controller.signal)
+      .then((currentUser) => {
+        if (cancelled) return;
+        setUser(currentUser);
+        setStatus(currentUser ? "authed" : "guest");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setUser(null);
+        setStatus("guest");
+      })
+      .finally(() => window.clearTimeout(timeoutId));
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeoutId);
+      controller.abort();
     };
   }, []);
 
