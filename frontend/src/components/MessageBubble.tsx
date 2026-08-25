@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { BrainCircuit, ChevronDown, Copy, CopyCheck } from "lucide-react";
+import {
+  BrainCircuit,
+  ChevronDown,
+  Copy,
+  CopyCheck,
+  RotateCcw,
+  ThumbsDown,
+  ThumbsUp,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatMessage } from "../types/chat.types";
@@ -47,13 +55,16 @@ function parseAssistantContent(raw: string): ParsedAssistantContent {
 interface MessageBubbleProps {
   message: ChatMessage;
   isStreaming?: boolean;
+  onRetry?: () => void;
 }
 
 export function MessageBubble({
   message,
   isStreaming = false,
+  onRetry,
 }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false);
+  const [feedback, setFeedback] = useState<"up" | "down" | null>(null);
   const isUser = message.role === "user";
   const parsedAssistant = isUser
     ? null
@@ -79,21 +90,6 @@ export function MessageBubble({
         >
           {isUser ? "You" : "Cognita"}
         </span>
-        {!isUser && displayContent && (
-          <button
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground"
-            type="button"
-            onClick={copyMessage}
-            aria-label="Copy response"
-          >
-            {copied ? (
-              <CopyCheck className="h-3.5 w-3.5" />
-            ) : (
-              <Copy className="h-3.5 w-3.5" />
-            )}
-            {copied ? "Copied" : "Copy"}
-          </button>
-        )}
       </div>
 
       <div
@@ -141,6 +137,47 @@ export function MessageBubble({
           </span>
         ) : null}
       </div>
+      {!isUser && displayContent && !isStreaming && (
+        <div className="mt-3 flex items-center gap-1">
+          <button
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            type="button"
+            onClick={copyMessage}
+            aria-label="Copy response"
+          >
+            {copied ? <CopyCheck className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+          <button
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            type="button"
+            onClick={onRetry}
+            disabled={!onRetry}
+            aria-label="Retry response"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Retry
+          </button>
+          <button
+            className={`rounded-md p-1.5 transition hover:bg-muted hover:text-foreground ${feedback === "up" ? "bg-muted text-foreground" : "text-muted-foreground"}`}
+            type="button"
+            onClick={() => setFeedback("up")}
+            aria-label="Good response"
+            aria-pressed={feedback === "up"}
+          >
+            <ThumbsUp className="h-3.5 w-3.5" />
+          </button>
+          <button
+            className={`rounded-md p-1.5 transition hover:bg-muted hover:text-foreground ${feedback === "down" ? "bg-muted text-foreground" : "text-muted-foreground"}`}
+            type="button"
+            onClick={() => setFeedback("down")}
+            aria-label="Poor response"
+            aria-pressed={feedback === "down"}
+          >
+            <ThumbsDown className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
     </article>
   );
 }

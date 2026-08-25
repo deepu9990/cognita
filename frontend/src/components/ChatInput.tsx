@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { ChevronDown, SendHorizontal, Square } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Plus, SendHorizontal, Square } from "lucide-react";
 import { Button } from "./ui/button";
 import type { ModelInfo } from "../types/chat.types";
 
@@ -31,8 +31,31 @@ export function ChatInput({
   onStop,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const modelPickerRef = useRef<HTMLFormElement>(null);
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const selectedModel = models.find((model) => model.id === selectedModelId);
   const modelUnavailable = !selectedModelId || !selectedModel?.loaded;
+
+  useEffect(() => {
+    if (!modelPickerOpen) return;
+
+    function closeModelPicker(event: PointerEvent) {
+      if (!modelPickerRef.current?.contains(event.target as Node)) {
+        setModelPickerOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setModelPickerOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeModelPicker);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", closeModelPicker);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [modelPickerOpen]);
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -53,7 +76,8 @@ export function ChatInput({
   return (
     <div className="mx-auto w-full max-w-full px-6 pb-6 sm:max-w-[60vw] sm:px-10">
       <form
-        className="group rounded-2xl border border-border bg-card p-3.5 shadow-sm transition focus-within:border-primary/50 focus-within:shadow-glow"
+        ref={modelPickerRef}
+        className="group relative rounded-2xl bg-muted/60 p-3 transition focus-within:bg-muted sm:p-3.5"
         onSubmit={(event) => {
           event.preventDefault();
           onSubmit();
@@ -68,48 +92,24 @@ export function ChatInput({
           rows={1}
           disabled={disabled}
           aria-label="Message"
-          className="max-h-44 min-h-[44px] w-full resize-none bg-transparent px-2 py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground"
+          className="max-h-44 min-h-[68px] w-full resize-none bg-transparent px-2 py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground sm:min-h-[44px]"
         />
-        <div className="mt-2 flex items-center justify-between gap-3 border-t border-border/70 pt-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="relative min-w-0">
-              <select
-                value={selectedModelId ?? ""}
-                onChange={(event) => onModelChange(event.target.value)}
-                disabled={
-                  modelsLoading ||
-                  modelsError ||
-                  models.length === 0 ||
-                  isStreaming
-                }
-                aria-label="Select model"
-                className="h-8 max-w-full appearance-none rounded-lg bg-muted py-1 pl-2.5 pr-7 text-left text-xs font-medium text-foreground outline-none transition hover:bg-accent focus:ring-2 focus:ring-primary/35 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {modelsLoading && <option value="">Loading models…</option>}
-                {!modelsLoading && modelsError && (
-                  <option value="">Models unavailable</option>
-                )}
-                {!modelsLoading && !modelsError && models.length === 0 && (
-                  <option value="">No models available</option>
-                )}
-                {models.map((model) => (
-                  <option
-                    key={model.id}
-                    value={model.id}
-                    disabled={!model.loaded}
-                  >
-                    {model.name}{model.loaded ? "" : " (unavailable)"}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            </div>
-            {selectedModel && (
-              <p className="truncate text-xs text-muted-foreground">
-                {selectedModel.description}
-              </p>
-            )}
-          </div>
+        <div className="mt-2 flex items-center justify-between gap-3 pt-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            className="h-8 w-8 rounded-lg"
+            onClick={() => setModelPickerOpen((open) => !open)}
+            disabled={
+              modelsLoading || modelsError || models.length === 0 || isStreaming
+            }
+            aria-label="Choose model"
+            aria-expanded={modelPickerOpen}
+            title={selectedModel ? `Model: ${selectedModel.name}` : "Choose model"}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
           {isStreaming ? (
             <Button
               variant="destructive"
@@ -134,8 +134,35 @@ export function ChatInput({
             </Button>
           )}
         </div>
+        {modelPickerOpen && (
+          <div className="absolute bottom-14 left-3 right-3 z-20 max-h-64 overflow-y-auto rounded-xl border border-border bg-card p-2 shadow-xl sm:left-3 sm:right-auto sm:w-80">
+            <p className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Choose model
+            </p>
+            {models.map((model) => (
+              <button
+                key={model.id}
+                type="button"
+                disabled={!model.loaded}
+                onClick={() => {
+                  onModelChange(model.id);
+                  setModelPickerOpen(false);
+                }}
+                className={`w-full rounded-lg px-3 py-2.5 text-left transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 ${model.id === selectedModelId ? "bg-muted" : ""}`}
+              >
+                <span className="block text-sm font-medium text-foreground">
+                  {model.name}
+                  {!model.loaded && " · Unavailable"}
+                </span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {model.description}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </form>
-      <p className="mt-3 text-center text-[11px] text-muted-foreground">
+      <p className="mt-3 hidden text-center text-[11px] text-muted-foreground sm:block">
         {selectedModel ? `${selectedModel.name} · ` : ""}Your conversation stays in memory
       </p>
     </div>

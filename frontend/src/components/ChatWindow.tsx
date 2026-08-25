@@ -20,7 +20,7 @@ const suggestions = [
   "Help me plan a side project",
 ];
 
-const PREFERRED_MODEL_ID = "qwen3.5-9b";
+const PREFERRED_MODEL_ID = "qwen3-4b";
 
 function makeId(): string {
   return crypto.randomUUID();
@@ -47,6 +47,7 @@ export function ChatWindow() {
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [modelsLoading, setModelsLoading] = useState(true);
   const [modelsError, setModelsError] = useState(false);
+  const [failedPrompt, setFailedPrompt] = useState<string | null>(null);
 
   useEffect(() => {
     const signalController = new AbortController();
@@ -135,6 +136,7 @@ export function ChatWindow() {
     const content = text.trim();
     if (!content || isStreaming || !selectedModelId) return;
     setError(null);
+    setFailedPrompt(null);
     setInput("");
     const userMessage: ChatMessage = { id: makeId(), role: "user", content };
     const assistantMessage: ChatMessage = {
@@ -149,6 +151,7 @@ export function ChatWindow() {
     setController(nextController);
 
     let createdConversationId: string | null = null;
+    let receivedAssistantContent = false;
 
     try {
       await streamChat(history, {
@@ -160,6 +163,7 @@ export function ChatWindow() {
           if (!conversationId) createdConversationId = meta.conversationId;
         },
         onChunk: (chunk) => {
+          receivedAssistantContent = true;
           setMessages((current) =>
             current.map((message) =>
               message.id === assistantMessage.id
@@ -175,9 +179,12 @@ export function ChatWindow() {
           (streamError as Error).message ||
             "Unable to connect to the local AI model.",
         );
-        setMessages((current) =>
-          current.filter((message) => message.id !== assistantMessage.id),
-        );
+        setFailedPrompt(content);
+        if (!receivedAssistantContent) {
+          setMessages((current) =>
+            current.filter((message) => message.id !== assistantMessage.id),
+          );
+        }
       }
     } finally {
       setController(null);
@@ -194,6 +201,18 @@ export function ChatWindow() {
 
   function stopGeneration() {
     controller?.abort();
+  }
+
+  function retryResponse(assistantMessageId: string) {
+    const assistantIndex = messages.findIndex(
+      (message) => message.id === assistantMessageId,
+    );
+    if (assistantIndex < 1) return;
+
+    const prompt = [...messages.slice(0, assistantIndex)]
+      .reverse()
+      .find((message) => message.role === "user")?.content;
+    if (prompt) void submitMessage(prompt);
   }
 
   const startNewChat = useCallback(() => {
@@ -257,7 +276,7 @@ export function ChatWindow() {
         </div>
       )}
 
-      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-card">
+      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card">
         <header className="relative flex h-[4.5rem] w-full shrink-0 items-center justify-between gap-4 border-b border-border px-6 sm:px-10">
           <div className="flex items-center gap-3">
             <button
@@ -300,22 +319,22 @@ export function ChatWindow() {
           </div>
         )}
 
-        <section className="relative mx-auto flex w-full max-w-full flex-1 flex-col overflow-hidden px-6 pb-2 sm:max-w-[60vw] sm:px-10">
+        <section className="relative mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden px-4 pb-2 sm:max-w-[60vw] sm:px-10">
           {showEmptyState ? (
             <Card className="animate-fade-in-up mt-8 flex flex-1 items-center border-border bg-card">
-              <CardContent className="w-full p-10 sm:p-16">
+              <CardContent className="w-full p-6 sm:p-16">
                 <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                   <WandSparkles className="h-3.5 w-3.5 text-primary" />
                   Private by design
                 </p>
-                <h1 className="max-w-xl text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-6xl">
+                <h1 className="max-w-xl text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-6xl">
                   What are you thinking about today?
                 </h1>
                 <p className="mt-5 max-w-xl text-sm leading-7 text-subtle-foreground sm:text-base">
                   Run ideas, debug code, or draft content with your local model.
                   Your conversations stay on your own infrastructure.
                 </p>
-                <div className="mt-10 flex flex-wrap gap-3">
+                <div className="mt-7 flex flex-wrap gap-3 sm:mt-10">
                   {suggestions.map((suggestion) => (
                     <Button
                       key={suggestion}
@@ -333,7 +352,11 @@ export function ChatWindow() {
               </CardContent>
             </Card>
           ) : (
-            <MessageList messages={messages} isStreaming={isStreaming} />
+            <MessageList
+              messages={messages}
+              isStreaming={isStreaming}
+              onRetry={retryResponse}
+            />
           )}
         </section>
 
@@ -346,6 +369,16 @@ export function ChatWindow() {
                 <p className="text-xs opacity-80">
                   Make sure the configured model host is running and reachable.
                 </p>
+                {failedPrompt && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => void submitMessage(failedPrompt)}
+                  >
+                    Retry message
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </div>

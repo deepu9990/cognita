@@ -206,6 +206,7 @@ export async function streamChat(
   let streamStarted = false;
   let assistantText = "";
   let persisted = false;
+  let clientDisconnected = false;
 
   const persistAssistant = async (): Promise<void> => {
     if (persisted || !conversation || !assistantText.trim()) return;
@@ -217,9 +218,12 @@ export async function streamChat(
     }
   };
 
-  // A client that aborts mid-stream should still keep what was generated.
-  request.on("close", () => {
-    if (!response.writableEnded) void persistAssistant();
+  // Fetch aborts close the response stream; preserve content already sent.
+  response.once("close", () => {
+    if (!response.writableEnded) {
+      clientDisconnected = true;
+      void persistAssistant();
+    }
   });
 
   try {
@@ -241,6 +245,7 @@ export async function streamChat(
     }
 
     for await (const chunk of ollamaService.stream(messages, model)) {
+      if (clientDisconnected) break;
       streamStarted = true;
       const content = chunk.message?.content ?? "";
       if (content) {
@@ -250,11 +255,15 @@ export async function streamChat(
     }
 
     await persistAssistant();
-    response.write("data: [DONE]\n\n");
-    response.end();
+    if (!clientDisconnected) {
+      response.write("data: [DONE]\n\n");
+      response.end();
+    }
   } catch (error) {
     console.error("Chat stream failed:", error);
     await persistAssistant();
+
+    if (clientDisconnected) return;
 
     if (response.headersSent && !response.writableEnded) {
       response.write(

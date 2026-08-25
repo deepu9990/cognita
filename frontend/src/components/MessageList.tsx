@@ -5,9 +5,14 @@ import { MessageBubble } from "./MessageBubble";
 interface MessageListProps {
   messages: ChatMessage[];
   isStreaming: boolean;
+  onRetry: (messageId: string) => void;
 }
 
-export function MessageList({ messages, isStreaming }: MessageListProps) {
+export function MessageList({
+  messages,
+  isStreaming,
+  onRetry,
+}: MessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,7 +29,7 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
   return (
     <div
       ref={listRef}
-      className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-10 overflow-y-auto py-8 pr-2"
+      className="scrollbar-thin flex min-h-0 flex-1 flex-col gap-10 overflow-y-auto overscroll-contain py-6 pr-1 touch-pan-y sm:py-8 sm:pr-2"
       aria-live="polite"
     >
       {messages
@@ -35,6 +40,9 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
             message={message}
             isStreaming={
               isStreaming && message === messages[messages.length - 1]
+            }
+            onRetry={
+              message.role === "assistant" ? () => onRetry(message.id) : undefined
             }
           />
         ))}
