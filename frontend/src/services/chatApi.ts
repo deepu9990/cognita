@@ -1,9 +1,10 @@
-import { API_URL, apiFetch } from "./apiClient";
-import type { ChatMessage } from "../types/chat.types";
-
-interface StreamEvent {
-  content: string;
-}
+import { API_URL, apiFetch, apiJson } from "./apiClient";
+import type {
+  ChatMessage,
+  ChatStreamChunk,
+  ModelInfo,
+  ModelsResponse,
+} from "../types/chat.types";
 
 export interface HealthStatus {
   ollama: boolean;
@@ -20,9 +21,15 @@ export interface StreamMeta {
 export interface StreamOptions {
   conversationId?: string;
   temporary?: boolean;
+  model: string;
   onChunk: (content: string) => void;
   onMeta?: (meta: StreamMeta) => void;
   signal?: AbortSignal;
+}
+
+export async function fetchModels(signal?: AbortSignal): Promise<ModelInfo[]> {
+  const response = await apiJson<ModelsResponse>("/api/models", { signal });
+  return response.models;
 }
 
 export async function fetchHealthStatus(
@@ -57,7 +64,8 @@ export async function streamChat(
   messages: ChatMessage[],
   options: StreamOptions,
 ): Promise<void> {
-  const { conversationId, temporary, onChunk, onMeta, signal } = options;
+  const { conversationId, temporary, model, onChunk, onMeta, signal } =
+    options;
 
   const response = await apiFetch("/api/chat/stream", {
     method: "POST",
@@ -66,6 +74,7 @@ export async function streamChat(
       Accept: "text/event-stream",
     },
     body: JSON.stringify({
+      model,
       messages: messages.map(({ role, content }) => ({ role, content })),
       conversationId,
       temporary,
@@ -100,7 +109,8 @@ export async function streamChat(
           onMeta?.(JSON.parse(data) as StreamMeta);
           continue;
         }
-        const parsed = JSON.parse(data) as StreamEvent;
+        const parsed = JSON.parse(data) as ChatStreamChunk & { error?: string };
+        if (parsed.error) throw new Error(parsed.error);
         onChunk(parsed.content);
       }
       if (done) break;

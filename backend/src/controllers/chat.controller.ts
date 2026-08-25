@@ -58,6 +58,16 @@ function getValidatedMessages(body: unknown): ChatMessage[] {
   return messages;
 }
 
+function getRequestedModel(body: unknown): string | undefined {
+  if (!body || typeof body !== "object") return undefined;
+  const { model } = body as ChatRequestBody;
+  if (model === undefined) return undefined;
+  if (typeof model !== "string" || !model.trim()) {
+    throw new Error("model must be a non-empty string");
+  }
+  return model;
+}
+
 function sendError(response: Response, status: number, error: string): void {
   const payload: ApiError = { success: false, error };
   response.status(status).json(payload);
@@ -86,7 +96,7 @@ async function resolveConversation(
   const created = await createConversation(
     userId,
     lastUserMessage(messages),
-    ollamaService.getModel(),
+    body.model ?? ollamaService.getModel(),
   );
   return { id: created.id, title: created.title };
 }
@@ -97,8 +107,10 @@ export async function chat(
   next: NextFunction,
 ): Promise<void> {
   let messages: ChatMessage[];
+  let model: string | undefined;
   try {
     messages = getValidatedMessages(request.body);
+    model = getRequestedModel(request.body);
   } catch (error) {
     sendError(
       response,
@@ -110,6 +122,7 @@ export async function chat(
 
   const userId = request.userId as string;
   const body = request.body as ChatRequestBody;
+  if (model) body.model = model;
 
   let conversation: { id: string; title?: string } | null;
   try {
@@ -128,7 +141,7 @@ export async function chat(
   }
 
   try {
-    const result = await ollamaService.chat(messages);
+    const result = await ollamaService.chat(messages, model);
     const content = result.message?.content ?? "";
 
     if (conversation && content) {
@@ -157,8 +170,10 @@ export async function streamChat(
   next: NextFunction,
 ): Promise<void> {
   let messages: ChatMessage[];
+  let model: string | undefined;
   try {
     messages = getValidatedMessages(request.body);
+    model = getRequestedModel(request.body);
   } catch (error) {
     sendError(
       response,
@@ -170,6 +185,7 @@ export async function streamChat(
 
   const userId = request.userId as string;
   const body = request.body as ChatRequestBody;
+  if (model) body.model = model;
 
   let conversation: { id: string; title?: string } | null;
   try {
@@ -224,12 +240,12 @@ export async function streamChat(
       );
     }
 
-    for await (const chunk of ollamaService.stream(messages)) {
+    for await (const chunk of ollamaService.stream(messages, model)) {
       streamStarted = true;
       const content = chunk.message?.content ?? "";
       if (content) {
         assistantText += content;
-        response.write(`data: ${JSON.stringify({ content })}\n\n`);
+        response.write(`data: ${JSON.stringify({ model: chunk.model, content })}\n\n`);
       }
     }
 
@@ -253,6 +269,13 @@ export async function streamChat(
       );
     }
   }
+}
+
+export async function models(
+  _request: Request,
+  response: Response,
+): Promise<void> {
+  response.json({ models: await ollamaService.getModels() });
 }
 
 export async function health(

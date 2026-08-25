@@ -1,6 +1,6 @@
 import { Ollama, type ChatResponse, type Message } from "ollama";
 import dotenv from "dotenv";
-import type { ChatMessage } from "../types/chat.types.js";
+import type { ChatMessage, ModelInfo } from "../types/chat.types.js";
 
 dotenv.config();
 
@@ -24,6 +24,10 @@ interface FastApiChatResponse {
 interface FastApiStreamEvent {
   content?: string;
   error?: string;
+}
+
+interface FastApiModelsResponse {
+  models?: ModelInfo[];
 }
 
 export class OllamaService {
@@ -89,15 +93,45 @@ export class OllamaService {
     return details.available;
   }
 
-  async chat(messages: ChatMessage[]): Promise<ChatResponse> {
+  async getModels(): Promise<ModelInfo[]> {
+    for (const entry of this.clients) {
+      try {
+        if (entry.protocol === "fastapi") {
+          const response = await fetch(`${entry.host}/models`, {
+            headers: entry.headers,
+          });
+          if (!response.ok) continue;
+          const data = (await response.json()) as FastApiModelsResponse;
+          if (Array.isArray(data.models)) return data.models;
+          continue;
+        }
+
+        const response = await entry.client.list();
+        return response.models.map((model) => ({
+          id: model.name,
+          name: model.name,
+          description: "Available through the configured inference provider",
+          loaded: true,
+        }));
+      } catch {
+        // Try the configured fallback host.
+      }
+    }
+    return [];
+  }
+
+  async chat(
+    messages: ChatMessage[],
+    model = this.model,
+  ): Promise<ChatResponse> {
     let lastError: unknown;
     for (const entry of this.clients) {
       try {
         if (entry.protocol === "fastapi") {
-          return await this.fastApiChat(entry, messages);
+          return await this.fastApiChat(entry, messages, model);
         }
         return await entry.client.chat({
-          model: this.model,
+          model,
           messages: this.toOllamaMessages(messages),
           stream: false,
         });
@@ -108,14 +142,21 @@ export class OllamaService {
     throw lastError ?? new Error("No Ollama host configured.");
   }
 
-  async *stream(messages: ChatMessage[]): AsyncGenerator<ChatResponse> {
+  async *stream(
+    messages: ChatMessage[],
+    model = this.model,
+  ): AsyncGenerator<ChatResponse> {
     let lastError: unknown;
     for (const entry of this.clients) {
       try {
         if (entry.protocol === "fastapi") {
-          for await (const content of this.fastApiStream(entry, messages)) {
+          for await (const content of this.fastApiStream(
+            entry,
+            messages,
+            model,
+          )) {
             yield {
-              model: this.model,
+              model,
               created_at: new Date(),
               message: { role: "assistant", content },
               done: false,
@@ -131,7 +172,7 @@ export class OllamaService {
           return;
         }
         const response = await entry.client.chat({
-          model: this.model,
+          model,
           messages: this.toOllamaMessages(messages),
           stream: true,
         });
@@ -208,14 +249,15 @@ export class OllamaService {
   private async fastApiChat(
     entry: HostClient,
     messages: ChatMessage[],
+    model: string,
   ): Promise<ChatResponse> {
     let content = "";
-    for await (const chunk of this.fastApiStream(entry, messages)) {
+    for await (const chunk of this.fastApiStream(entry, messages, model)) {
       content += chunk;
     }
 
     return {
-      model: this.model,
+      model,
       created_at: new Date(),
       message: { role: "assistant", content },
       done: true,
@@ -232,6 +274,7 @@ export class OllamaService {
   private async *fastApiStream(
     entry: HostClient,
     messages: ChatMessage[],
+    model: string,
   ): AsyncGenerator<string> {
     const response = await fetch(`${entry.host}/chat`, {
       method: "POST",
@@ -241,6 +284,7 @@ export class OllamaService {
         ...entry.headers,
       },
       body: JSON.stringify({
+        model,
         messages: this.toOllamaMessages(messages),
         max_new_tokens: this.maxNewTokens,
       }),

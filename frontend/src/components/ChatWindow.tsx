@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bot, Ghost, Menu, WandSparkles } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import { fetchHealthStatus, streamChat } from "../services/chatApi";
+import { fetchHealthStatus, fetchModels, streamChat } from "../services/chatApi";
 import { getConversation } from "../services/conversationApi";
 import { useConversations } from "../hooks/useConversations";
-import type { ChatMessage } from "../types/chat.types";
+import type { ChatMessage, ModelInfo } from "../types/chat.types";
 import { ChatInput } from "./ChatInput";
 import { MessageList } from "./MessageList";
 import { Logo } from "./Logo";
@@ -19,6 +19,8 @@ const suggestions = [
   "Write a warm-up routine",
   "Help me plan a side project",
 ];
+
+const PREFERRED_MODEL_ID = "qwen3.5-9b";
 
 function makeId(): string {
   return crypto.randomUUID();
@@ -38,9 +40,39 @@ export function ChatWindow() {
   const [temporary, setTemporary] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [connectionLabel, setConnectionLabel] = useState(
-    "Checking Ollama connection",
+    "Checking inference connection",
   );
   const [connectionOnline, setConnectionOnline] = useState(false);
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [modelsLoading, setModelsLoading] = useState(true);
+  const [modelsError, setModelsError] = useState(false);
+
+  useEffect(() => {
+    const signalController = new AbortController();
+
+    void fetchModels(signalController.signal)
+      .then((availableModels) => {
+        if (signalController.signal.aborted) return;
+        setModels(availableModels);
+        const preferred = availableModels.find(
+          (model) => model.id === PREFERRED_MODEL_ID && model.loaded,
+        );
+        setSelectedModelId(
+          preferred?.id ??
+            availableModels.find((model) => model.loaded)?.id ??
+            null,
+        );
+      })
+      .catch(() => {
+        if (!signalController.signal.aborted) setModelsError(true);
+      })
+      .finally(() => {
+        if (!signalController.signal.aborted) setModelsLoading(false);
+      });
+
+    return () => signalController.abort();
+  }, []);
 
   useEffect(() => {
     if (temporary) return;
@@ -72,19 +104,19 @@ export function ChatWindow() {
         const health = await fetchHealthStatus(signalController.signal);
         if (!health.ollama) {
           setConnectionOnline(false);
-          setConnectionLabel("Ollama unavailable");
+          setConnectionLabel("Inference unavailable");
           return;
         }
         if (health.connection === "remote") {
           setConnectionOnline(true);
-          setConnectionLabel("Ollama connected via Colab");
+          setConnectionLabel("Inference server connected");
           return;
         }
         setConnectionOnline(true);
-        setConnectionLabel("Ollama connected locally");
+        setConnectionLabel("Inference server connected locally");
       } catch {
         setConnectionOnline(false);
-        setConnectionLabel("Ollama disconnected");
+        setConnectionLabel("Inference server disconnected");
       }
     }
 
@@ -101,7 +133,7 @@ export function ChatWindow() {
 
   async function submitMessage(text = input) {
     const content = text.trim();
-    if (!content || isStreaming) return;
+    if (!content || isStreaming || !selectedModelId) return;
     setError(null);
     setInput("");
     const userMessage: ChatMessage = { id: makeId(), role: "user", content };
@@ -120,6 +152,7 @@ export function ChatWindow() {
 
     try {
       await streamChat(history, {
+        model: selectedModelId,
         conversationId,
         temporary,
         signal: nextController.signal,
@@ -334,6 +367,11 @@ export function ChatWindow() {
           onChange={setInput}
           onSubmit={() => submitMessage()}
           onStop={stopGeneration}
+          models={models}
+          selectedModelId={selectedModelId}
+          modelsLoading={modelsLoading}
+          modelsError={modelsError}
+          onModelChange={setSelectedModelId}
         />
       </main>
     </div>
