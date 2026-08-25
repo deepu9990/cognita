@@ -292,7 +292,7 @@ export function ChatWindow() {
         </header>
 
         {temporary && (
-          <div className="mx-auto w-full max-w-[60vw] px-6 pt-4 sm:px-10">
+          <div className="mx-auto w-full max-w-full px-6 pt-4 sm:max-w-[60vw] sm:px-10">
             <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-xs text-subtle-foreground">
               <Ghost className="h-3.5 w-3.5" />
               Temporary chat. Nothing is saved and this disappears on refresh.
@@ -300,7 +300,7 @@ export function ChatWindow() {
           </div>
         )}
 
-        <section className="relative mx-auto flex w-full max-w-[60vw] flex-1 flex-col overflow-hidden px-6 pb-2 sm:px-10">
+        <section className="relative mx-auto flex w-full max-w-full flex-1 flex-col overflow-hidden px-6 pb-2 sm:max-w-[60vw] sm:px-10">
           {showEmptyState ? (
             <Card className="animate-fade-in-up mt-8 flex flex-1 items-center border-border bg-card">
               <CardContent className="w-full p-10 sm:p-16">
@@ -338,7 +338,7 @@ export function ChatWindow() {
         </section>
 
         {error && (
-          <div className="mx-auto w-full max-w-[60vw] px-6 pb-3 sm:px-10">
+          <div className="mx-auto w-full max-w-full px-6 pb-3 sm:max-w-[60vw] sm:px-10">
             <Card className="border-destructive/40 bg-destructive/10 text-sm text-destructive">
               <CardContent className="space-y-1.5 p-4">
                 <p className="font-semibold">Connection issue</p>
@@ -352,7 +352,7 @@ export function ChatWindow() {
         )}
 
         {isStreaming && (
-          <div className="mx-auto mb-2 flex w-full max-w-[60vw] items-center gap-2 px-6 text-xs uppercase tracking-[0.14em] text-muted-foreground sm:px-10">
+          <div className="mx-auto mb-2 flex w-full max-w-full items-center gap-2 px-6 text-xs uppercase tracking-[0.14em] text-muted-foreground sm:max-w-[60vw] sm:px-10">
             <TypingIndicator />
             <span className="inline-flex items-center gap-1">
               <Bot className="h-3.5 w-3.5" /> Generating response

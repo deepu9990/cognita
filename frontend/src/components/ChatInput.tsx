@@ -51,7 +51,7 @@ export function ChatInput({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[60vw] px-6 pb-6 sm:px-10">
+    <div className="mx-auto w-full max-w-full px-6 pb-6 sm:max-w-[60vw] sm:px-10">
       <form
         className="group rounded-2xl border border-border bg-card p-3.5 shadow-sm transition focus-within:border-primary/50 focus-within:shadow-glow"
         onSubmit={(event) => {
