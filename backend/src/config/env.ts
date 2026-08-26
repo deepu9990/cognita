@@ -29,7 +29,7 @@ const envSchema = z.object({
 
   OLLAMA_HOST: z.string().default(""),
   OLLAMA_FALLBACK_HOST: z.string().default(""),
-  OLLAMA_MODEL: z.string().default("qwen3:4b"),
+  OLLAMA_MODEL: z.string().default("qwen3-4b"),
   OLLAMA_MAX_NEW_TOKENS: z.coerce.number().int().positive().default(500),
   SYSTEM_PROMPT: z.string().optional(),
 });

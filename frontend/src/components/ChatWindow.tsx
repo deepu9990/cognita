@@ -167,7 +167,9 @@ export function ChatWindow() {
           setMessages((current) =>
             current.map((message) =>
               message.id === assistantMessage.id
-                ? { ...message, content: message.content + chunk }
+                ? chunk.type === "thinking"
+                  ? { ...message, thinking: (message.thinking ?? "") + chunk.content }
+                  : { ...message, content: message.content + chunk.content }
                 : message,
             ),
           );
@@ -241,7 +243,7 @@ export function ChatWindow() {
   const showEmptyState = messages.length === 0;
 
   return (
-    <div className="relative flex h-full min-h-full overflow-hidden">
+    <div className="relative flex h-[100dvh] min-h-0 overflow-hidden">
       <div className="hidden h-full w-72 shrink-0 md:block">
         <Sidebar
           conversations={conversations}
@@ -321,8 +323,8 @@ export function ChatWindow() {
 
         <section className="relative mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col overflow-hidden px-4 pb-2 sm:max-w-[60vw] sm:px-10">
           {showEmptyState ? (
-            <Card className="animate-fade-in-up mt-8 flex flex-1 items-center border-border bg-card">
-              <CardContent className="w-full p-6 sm:p-16">
+            <Card className="scrollbar-thin animate-fade-in-up mt-4 flex min-h-0 flex-1 items-center overflow-y-auto overscroll-contain border-border bg-card touch-pan-y sm:mt-8">
+              <CardContent className="my-auto w-full p-6 sm:p-16">
                 <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                   <WandSparkles className="h-3.5 w-3.5 text-primary" />
                   Private by design

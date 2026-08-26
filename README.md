@@ -18,7 +18,7 @@ The current default is **Qwen3 4B**, but the model is configuration, not a depen
 Install Ollama from [ollama.com](https://ollama.com), then pull whichever model you want:
 
 ```bash
-ollama pull qwen3:4b
+ollama pull qwen3-4b
 ```
 
 Any Ollama model works, for example:
@@ -107,7 +107,7 @@ OLLAMA_HOST=http://localhost:11434
 # Optional second host, tried when the primary is unreachable.
 OLLAMA_FALLBACK_HOST=
 # Any model your host serves. Qwen3 4B is only the current default.
-OLLAMA_MODEL=qwen3:4b
+OLLAMA_MODEL=qwen3-4b
 # Generation cap, used by the notebook protocol.
 OLLAMA_MAX_NEW_TOKENS=2000
 SYSTEM_PROMPT=You are a helpful AI assistant. Give clear, accurate and concise answers. When providing code, provide complete working examples.

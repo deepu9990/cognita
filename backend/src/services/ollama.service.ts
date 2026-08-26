@@ -22,9 +22,15 @@ interface FastApiChatResponse {
 }
 
 interface FastApiStreamEvent {
+  type?: "content" | "thinking";
   content?: string;
+  model?: string;
   error?: string;
 }
+
+type StreamChatResponse = ChatResponse & {
+  eventType?: "content" | "thinking";
+};
 
 interface FastApiModelsResponse {
   models?: ModelInfo[];
@@ -53,7 +59,7 @@ export class OllamaService {
         client: new Ollama({ host, headers }),
       };
     });
-    this.model = process.env.OLLAMA_MODEL ?? "qwen3:4b";
+    this.model = process.env.OLLAMA_MODEL ?? "qwen3-4b";
     this.maxNewTokens = Number(process.env.OLLAMA_MAX_NEW_TOKENS ?? 2000);
     this.systemPrompt = process.env.SYSTEM_PROMPT ?? DEFAULT_SYSTEM_PROMPT;
   }
@@ -145,20 +151,20 @@ export class OllamaService {
   async *stream(
     messages: ChatMessage[],
     model = this.model,
-  ): AsyncGenerator<ChatResponse> {
+  ): AsyncGenerator<StreamChatResponse> {
     let lastError: unknown;
     for (const entry of this.clients) {
       try {
         if (entry.protocol === "fastapi") {
-          for await (const content of this.fastApiStream(
+          for await (const event of this.fastApiStream(
             entry,
             messages,
             model,
           )) {
             yield {
-              model,
+              model: event.model ?? model,
               created_at: new Date(),
-              message: { role: "assistant", content },
+              message: { role: "assistant", content: event.content ?? "" },
               done: false,
               done_reason: "stop",
               total_duration: 0,
@@ -167,6 +173,7 @@ export class OllamaService {
               prompt_eval_duration: 0,
               eval_count: 0,
               eval_duration: 0,
+              eventType: event.type ?? "content",
             };
           }
           return;
@@ -252,8 +259,8 @@ export class OllamaService {
     model: string,
   ): Promise<ChatResponse> {
     let content = "";
-    for await (const chunk of this.fastApiStream(entry, messages, model)) {
-      content += chunk;
+    for await (const event of this.fastApiStream(entry, messages, model)) {
+      if (event.type !== "thinking") content += event.content ?? "";
     }
 
     return {
@@ -275,7 +282,7 @@ export class OllamaService {
     entry: HostClient,
     messages: ChatMessage[],
     model: string,
-  ): AsyncGenerator<string> {
+  ): AsyncGenerator<FastApiStreamEvent> {
     const response = await fetch(`${entry.host}/chat`, {
       method: "POST",
       headers: {
@@ -298,7 +305,7 @@ export class OllamaService {
       response.headers.get("content-type")?.toLowerCase() ?? "";
     if (contentType.includes("application/json")) {
       const data = (await response.json()) as FastApiChatResponse;
-      if (data.response) yield data.response;
+      if (data.response) yield { type: "content", content: data.response };
       return;
     }
 
@@ -330,7 +337,7 @@ export class OllamaService {
             throw new Error(parsed.error);
           }
           if (parsed.content) {
-            yield parsed.content;
+            yield parsed;
           }
         }
 
@@ -349,7 +356,7 @@ export class OllamaService {
         if (data !== "[DONE]") {
           const parsed = JSON.parse(data) as FastApiStreamEvent;
           if (parsed.error) throw new Error(parsed.error);
-          if (parsed.content) yield parsed.content;
+          if (parsed.content) yield parsed;
         }
       }
     }

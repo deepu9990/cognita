@@ -4,6 +4,7 @@ export interface ChatMessage {
   id: string;
   role: MessageRole;
   content: string;
+  thinking?: string;
 }
 
 /** Provider-neutral model metadata returned by the Cognita API. */
@@ -35,6 +36,7 @@ export interface ChatRequest {
 export interface ChatStreamChunk {
   model: string;
   content: string;
+  type?: "content" | "thinking";
 }
 
 export interface ChatStreamError {

@@ -22,7 +22,7 @@ export interface StreamOptions {
   conversationId?: string;
   temporary?: boolean;
   model: string;
-  onChunk: (content: string) => void;
+  onChunk: (chunk: ChatStreamChunk) => void;
   onMeta?: (meta: StreamMeta) => void;
   signal?: AbortSignal;
 }
@@ -111,7 +111,7 @@ export async function streamChat(
         }
         const parsed = JSON.parse(data) as ChatStreamChunk & { error?: string };
         if (parsed.error) throw new Error(parsed.error);
-        onChunk(parsed.content);
+        onChunk(parsed);
       }
       if (done) break;
     }

@@ -5,6 +5,7 @@ import {
   assertConversationOwner,
   createConversation,
 } from "../services/conversation.service.js";
+import { prepareMessages } from "../utils/prepareMessages.js";
 import type {
   ApiError,
   ChatMessage,
@@ -14,6 +15,7 @@ import type {
 const MAX_MESSAGES = 100;
 const MAX_MESSAGE_LENGTH = 12_000;
 const MAX_TOTAL_LENGTH = 50_000;
+const activeConversations = new Set<string>();
 
 function getValidatedMessages(body: unknown): ChatMessage[] {
   if (!body || typeof body !== "object" || !("messages" in body)) {
@@ -169,10 +171,23 @@ export async function streamChat(
   response: Response,
   next: NextFunction,
 ): Promise<void> {
+  const originalMessages = request.body?.messages;
+  const originalLastMessage = Array.isArray(originalMessages)
+    ? originalMessages.at(-1)
+    : null;
+  const originalUserMessage =
+    originalLastMessage &&
+    typeof originalLastMessage === "object" &&
+    (originalLastMessage as { role?: unknown }).role === "user" &&
+    typeof (originalLastMessage as { content?: unknown }).content === "string"
+      ? (originalLastMessage as { content: string }).content
+      : "";
+
   let messages: ChatMessage[];
   let model: string | undefined;
   try {
-    messages = getValidatedMessages(request.body);
+    messages = prepareMessages(originalMessages);
+    messages = getValidatedMessages({ messages });
     model = getRequestedModel(request.body);
   } catch (error) {
     sendError(
@@ -186,19 +201,33 @@ export async function streamChat(
   const userId = request.userId as string;
   const body = request.body as ChatRequestBody;
   if (model) body.model = model;
+  if (!originalUserMessage.trim()) {
+    sendError(response, 400, "Last message must be from user");
+    return;
+  }
 
-  let conversation: { id: string; title?: string } | null;
+  let conversation: { id: string; title?: string } | null = null;
   try {
     conversation = await resolveConversation(userId, body, messages);
+    if (conversation && activeConversations.has(conversation.id)) {
+      sendError(
+        response,
+        429,
+        "A response is already in progress for this conversation",
+      );
+      return;
+    }
+    if (conversation) activeConversations.add(conversation.id);
     if (conversation) {
       await appendMessage(
         userId,
         conversation.id,
         "user",
-        lastUserMessage(messages),
+        originalUserMessage,
       );
     }
   } catch (error) {
+    if (conversation) activeConversations.delete(conversation.id);
     next(error);
     return;
   }
@@ -249,8 +278,11 @@ export async function streamChat(
       streamStarted = true;
       const content = chunk.message?.content ?? "";
       if (content) {
-        assistantText += content;
-        response.write(`data: ${JSON.stringify({ model: chunk.model, content })}\n\n`);
+        const type = chunk.eventType ?? "content";
+        if (type === "content") assistantText += content;
+        response.write(
+          `data: ${JSON.stringify({ model: chunk.model, content, type })}\n\n`,
+        );
       }
     }
 
@@ -277,6 +309,8 @@ export async function streamChat(
         "Unable to connect to the model host. Check that it is running and the configured model is installed.",
       );
     }
+  } finally {
+    if (conversation) activeConversations.delete(conversation.id);
   }
 }
 

@@ -72,7 +72,10 @@ export function MessageBubble({
   const displayContent = isUser
     ? message.content
     : (parsedAssistant?.answer ?? message.content);
-  const thinkingBlocks = parsedAssistant?.thoughts ?? [];
+  const thinkingBlocks = [
+    ...(parsedAssistant?.thoughts ?? []),
+    ...(message.thinking ? [message.thinking] : []),
+  ];
 
   async function copyMessage() {
     await navigator.clipboard.writeText(displayContent || message.content);
@@ -103,18 +106,12 @@ export function MessageBubble({
           <p>{displayContent}</p>
         ) : displayContent ? (
           <>
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              className="message-prose"
-            >
-              {displayContent}
-            </ReactMarkdown>
             {thinkingBlocks.length > 0 && (
-              <Collapsible className="mt-4 rounded-xl border border-border bg-muted">
+              <Collapsible className="my-4 rounded-xl border border-muted">
                 <CollapsibleTrigger className="group flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-left text-xs text-muted-foreground transition hover:text-foreground">
                   <span className="inline-flex items-center gap-2 uppercase tracking-[0.1em]">
                     <BrainCircuit className="h-3.5 w-3.5 text-primary" />
-                    LLM thinking
+                    Thinking
                   </span>
                   <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
                 </CollapsibleTrigger>
@@ -122,7 +119,7 @@ export function MessageBubble({
                   {thinkingBlocks.map((thought, index) => (
                     <p
                       key={`${message.id}-thinking-${index}`}
-                      className="whitespace-pre-wrap rounded-lg bg-background p-3.5 text-xs leading-6 text-muted-foreground"
+                      className="max-h-24 overflow-auto whitespace-pre-wrap rounded-lg bg-background p-3.5 text-xs leading-6 text-muted-foreground"
                     >
                       {thought}
                     </p>
@@ -130,6 +127,12 @@ export function MessageBubble({
                 </CollapsibleContent>
               </Collapsible>
             )}
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              className="message-prose"
+            >
+              {displayContent}
+            </ReactMarkdown>
           </>
         ) : isStreaming ? (
           <span className="text-xs uppercase tracking-[0.11em] text-muted-foreground">
@@ -145,7 +148,11 @@ export function MessageBubble({
             onClick={copyMessage}
             aria-label="Copy response"
           >
-            {copied ? <CopyCheck className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? (
+              <CopyCheck className="h-3.5 w-3.5" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
             {copied ? "Copied" : "Copy"}
           </button>
           <button
