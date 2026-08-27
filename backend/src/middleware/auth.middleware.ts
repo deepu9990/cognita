@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { verifyAccessToken } from "../services/token.service.js";
-import { ACCESS_COOKIE } from "../utils/cookies.js";
+// import { ACCESS_COOKIE } from "../utils/cookies.js"; // used by the cookie-based reader below
 import { HttpError } from "../utils/httpError.js";
 
 declare global {
@@ -13,7 +13,13 @@ declare global {
 }
 
 function readUserId(request: Request): string | null {
-  const token = request.cookies?.[ACCESS_COOKIE];
+  // --- Cookie-based auth (kept for reference) ---
+  // const token = request.cookies?.[ACCESS_COOKIE];
+
+  const authHeader = request.get("authorization") ?? "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length)
+    : null;
   if (!token) return null;
 
   try {

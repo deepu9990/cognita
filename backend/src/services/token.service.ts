@@ -4,7 +4,8 @@ import type { Types } from "mongoose";
 import { env } from "../config/env.js";
 import { RefreshToken } from "../models/refreshToken.model.js";
 
-const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
+// Stored client-side in localStorage now, so the access token itself carries the 1 day session length.
+const ACCESS_TOKEN_TTL_SECONDS = 24 * 60 * 60; // was 15 * 60 when using httpOnly cookies
 const REFRESH_TOKEN_TTL_DAYS = 30;
 
 export interface AccessTokenPayload {

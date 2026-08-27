@@ -17,11 +17,12 @@ import {
   signAccessToken,
 } from "../services/token.service.js";
 import { toPublicUser } from "../models/user.model.js";
-import {
-  REFRESH_COOKIE,
-  clearAuthCookies,
-  setAuthCookies,
-} from "../utils/cookies.js";
+// --- Cookie-based auth (kept for reference) ---
+// import {
+//   REFRESH_COOKIE,
+//   clearAuthCookies,
+//   setAuthCookies,
+// } from "../utils/cookies.js";
 import { HttpError } from "../utils/httpError.js";
 
 const OAUTH_STATE_COOKIE = "oauth_state";
@@ -43,13 +44,14 @@ const loginSchema = z.object({
 });
 
 async function establishSession(
-  response: Response,
   userId: Types.ObjectId,
   userAgent?: string,
-): Promise<void> {
+): Promise<{ accessToken: string; refreshToken: string }> {
   const accessToken = signAccessToken(userId.toString());
   const refreshToken = await issueRefreshToken(userId, userAgent);
-  setAuthCookies(response, accessToken, refreshToken);
+  // --- Cookie-based auth (kept for reference) ---
+  // setAuthCookies(response, accessToken, refreshToken);
+  return { accessToken, refreshToken };
 }
 
 export async function signupHandler(
@@ -60,12 +62,11 @@ export async function signupHandler(
   try {
     const input = signupSchema.parse(request.body);
     const user = await signup(input);
-    await establishSession(
-      response,
+    const tokens = await establishSession(
       new Types.ObjectId(user.id),
       request.get("user-agent"),
     );
-    response.status(201).json({ success: true, user });
+    response.status(201).json({ success: true, user, ...tokens });
   } catch (error) {
     next(error);
   }
@@ -79,12 +80,11 @@ export async function loginHandler(
   try {
     const input = loginSchema.parse(request.body);
     const user = await login(input);
-    await establishSession(
-      response,
+    const tokens = await establishSession(
       new Types.ObjectId(user.id),
       request.get("user-agent"),
     );
-    response.json({ success: true, user });
+    response.json({ success: true, user, ...tokens });
   } catch (error) {
     next(error);
   }
@@ -96,22 +96,29 @@ export async function refreshHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const token = request.cookies?.[REFRESH_COOKIE];
+    // --- Cookie-based auth (kept for reference) ---
+    // const token = request.cookies?.[REFRESH_COOKIE];
+    const token = (request.body as { refreshToken?: string })?.refreshToken;
     if (!token) {
       throw new HttpError(401, "Session expired. Please sign in again.");
     }
 
     const rotated = await rotateRefreshToken(token, request.get("user-agent"));
     if (!rotated) {
-      clearAuthCookies(response);
+      // clearAuthCookies(response);
       throw new HttpError(401, "Session expired. Please sign in again.");
     }
 
     const accessToken = signAccessToken(rotated.userId.toString());
-    setAuthCookies(response, accessToken, rotated.refreshToken);
+    // setAuthCookies(response, accessToken, rotated.refreshToken);
 
     const user = await getProfile(rotated.userId.toString());
-    response.json({ success: true, user });
+    response.json({
+      success: true,
+      user,
+      accessToken,
+      refreshToken: rotated.refreshToken,
+    });
   } catch (error) {
     next(error);
   }
@@ -123,9 +130,11 @@ export async function logoutHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const token = request.cookies?.[REFRESH_COOKIE];
+    // --- Cookie-based auth (kept for reference) ---
+    // const token = request.cookies?.[REFRESH_COOKIE];
+    const token = (request.body as { refreshToken?: string })?.refreshToken;
     if (token) await revokeRefreshToken(token);
-    clearAuthCookies(response);
+    // clearAuthCookies(response);
     response.json({ success: true });
   } catch (error) {
     next(error);
@@ -195,8 +204,12 @@ export async function googleCallbackHandler(
     const profile = await exchangeCodeForProfile(code, verifier);
     const user = await findOrCreateGoogleUser(profile);
 
-    await establishSession(response, user._id, request.get("user-agent"));
-    response.redirect(env.FRONTEND_URL.split(",")[0].trim());
+    const tokens = await establishSession(user._id, request.get("user-agent"));
+    const frontendUrl = env.FRONTEND_URL.split(",")[0].trim();
+    // Tokens travel in the URL fragment so they never hit server logs and are
+    // stripped from the address bar by AuthCallbackPage before anything renders.
+    const fragment = new URLSearchParams(tokens).toString();
+    response.redirect(`${frontendUrl}/auth/callback#${fragment}`);
   } catch (error) {
     next(error);
   }
