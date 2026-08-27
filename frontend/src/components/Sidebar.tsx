@@ -118,7 +118,7 @@ export function Sidebar({
                           void commitRename(conversation.id);
                         if (event.key === "Escape") setEditingId(null);
                       }}
-                      className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-foreground/30"
+                      className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-base outline-none focus:border-foreground/30 sm:text-xs"
                     />
                     <button
                       type="button"

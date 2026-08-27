@@ -89,7 +89,7 @@ export function MessageBubble({
         className={`mb-2.5 flex items-center gap-2 ${isUser ? "justify-end" : ""}`}
       >
         <span
-          className={`text-[12px] uppercase tracking-[0.12em] ${isUser ? "text-muted-foreground" : "text-primary"}`}
+          className={`text-[12px] font-semibold uppercase tracking-[0.12em] ${isUser ? "text-muted-foreground" : "text-primary"}`}
         >
           {isUser ? "You" : "Cognita"}
         </span>
@@ -99,7 +99,7 @@ export function MessageBubble({
         className={
           isUser
             ? "ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-sm border border-border bg-muted px-5 py-3.5 text-[15px] leading-7 text-foreground"
-            : "max-w-3xl text-[15px] leading-7 text-foreground"
+            : "max-w-[54rem] text-[15px] leading-7 text-foreground"
         }
       >
         {isUser ? (

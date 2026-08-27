@@ -23,6 +23,9 @@
     --success: 142 71% 37%;
     --warning: 32 95% 44%;
     --destructive: 0 72% 51%;
+    --link: 217 91% 53%;
+    --link-hover: 224 76% 48%;
+    --selection: 213 94% 85%;
   }
 
   .dark {
@@ -43,6 +46,9 @@
     --success: 142 69% 45%;
     --warning: 38 92% 50%;
     --destructive: 0 84% 60%;
+    --link: 213 94% 74%;
+    --link-hover: 212 96% 84%;
+    --selection: 224 76% 40%;
   }
 
   * {
@@ -93,34 +99,89 @@
   }
 
   .message-prose {
-    @apply text-[15px] leading-7 text-foreground/90;
+    @apply text-[16px] leading-[1.65] text-foreground;
+    user-select: text;
+  }
+
+  .message-prose ::selection {
+    background-color: hsl(var(--selection) / 0.5);
   }
 
   .message-prose p {
-    @apply m-0;
+    @apply m-0 mb-4;
   }
 
-  .message-prose p + p,
-  .message-prose ul + p,
-  .message-prose pre + p {
-    @apply mt-4;
+  .message-prose p:last-child {
+    @apply mb-0;
+  }
+
+  .message-prose h1,
+  .message-prose h2,
+  .message-prose h3,
+  .message-prose h4 {
+    @apply font-semibold leading-tight tracking-tight text-foreground;
+  }
+
+  .message-prose h1 {
+    @apply mb-3 mt-8 text-[28px] font-bold first:mt-0;
+  }
+
+  .message-prose h2 {
+    @apply mb-3 mt-7 text-[24px] font-bold first:mt-0;
+  }
+
+  .message-prose h3 {
+    @apply mb-2.5 mt-6 text-[20px] first:mt-0;
+  }
+
+  .message-prose h4 {
+    @apply mb-2 mt-5 text-[18px] first:mt-0;
+  }
+
+  .message-prose strong {
+    @apply font-semibold text-foreground;
+  }
+
+  .message-prose em {
+    @apply italic;
   }
 
   .message-prose ul,
   .message-prose ol {
-    @apply my-3 pl-6;
+    @apply mb-5 mt-3 space-y-2 pl-6;
   }
 
-  .message-prose li + li {
-    @apply mt-1;
+  .message-prose ul {
+    @apply list-disc;
+  }
+
+  .message-prose ol {
+    @apply list-decimal;
+  }
+
+  .message-prose li {
+    @apply pl-1 leading-[1.6];
+  }
+
+  .message-prose li > ul,
+  .message-prose li > ol {
+    @apply mb-0 mt-2;
+  }
+
+  .message-prose blockquote {
+    @apply my-4 border-l-[3px] border-muted-foreground/40 pl-4 text-subtle-foreground;
+  }
+
+  .message-prose hr {
+    @apply my-6 border-border;
   }
 
   .message-prose code {
-    @apply rounded bg-muted px-1.5 py-0.5 text-[0.85em];
+    @apply rounded-md bg-muted px-1.5 py-0.5 text-[0.9em] text-foreground;
   }
 
   .message-prose pre {
-    @apply overflow-x-auto rounded-xl border border-border/70 bg-zinc-900 p-4 text-zinc-100;
+    @apply my-4 overflow-x-auto rounded-xl border border-border/70 bg-zinc-900 p-4 text-[14px] leading-[1.55] text-zinc-100;
   }
 
   .message-prose pre code {
@@ -128,6 +189,22 @@
   }
 
   .message-prose a {
-    @apply text-primary underline-offset-4 hover:underline;
+    @apply font-medium text-[hsl(var(--link))] underline underline-offset-2 transition-colors hover:text-[hsl(var(--link-hover))];
+  }
+
+  .message-prose table {
+    @apply my-4 block w-full overflow-x-auto border-collapse text-[15px];
+  }
+
+  .message-prose th {
+    @apply border-b border-border bg-muted px-3 py-2.5 text-left font-semibold;
+  }
+
+  .message-prose td {
+    @apply border-b border-border px-3 py-2.5 align-top;
+  }
+
+  .message-prose > :first-child {
+    @apply mt-0;
   }
 }

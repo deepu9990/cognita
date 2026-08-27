@@ -92,7 +92,7 @@ export function ChatInput({
           rows={1}
           disabled={disabled}
           aria-label="Message"
-          className="max-h-44 min-h-[68px] w-full resize-none bg-transparent px-2 py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground sm:min-h-[44px]"
+          className="max-h-44 min-h-[68px] w-full resize-none bg-transparent px-2 py-2 text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground sm:min-h-[44px] sm:text-sm"
         />
         <div className="mt-2 flex items-center justify-between gap-3 pt-2">
           <Button
@@ -106,7 +106,9 @@ export function ChatInput({
             }
             aria-label="Choose model"
             aria-expanded={modelPickerOpen}
-            title={selectedModel ? `Model: ${selectedModel.name}` : "Choose model"}
+            title={
+              selectedModel ? `Model: ${selectedModel.name}` : "Choose model"
+            }
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -163,7 +165,8 @@ export function ChatInput({
         )}
       </form>
       <p className="mt-3 hidden text-center text-[11px] text-muted-foreground sm:block">
-        {selectedModel ? `${selectedModel.name} · ` : ""}Your conversation stays in memory
+        {selectedModel ? `${selectedModel.name} · ` : ""}Your conversation stays
+        in memory
       </p>
     </div>
   );

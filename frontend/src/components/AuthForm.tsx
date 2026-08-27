@@ -88,7 +88,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                   required
                   maxLength={80}
                   autoComplete="name"
-                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-base outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20 sm:text-sm"
                 />
               </div>
             )}
@@ -107,7 +107,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 onChange={(event) => setEmail(event.target.value)}
                 required
                 autoComplete="email"
-                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-base outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20 sm:text-sm"
               />
             </div>
 
@@ -126,7 +126,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 required
                 minLength={isSignup ? 8 : undefined}
                 autoComplete={isSignup ? "new-password" : "current-password"}
-                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-base outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20 sm:text-sm"
               />
               {isSignup && (
                 <p className="text-[11px] text-muted-foreground">
