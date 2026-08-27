@@ -1,0 +1,9 @@
+accelerate
+bitsandbytes
+fastapi
+pyngrok
+python-dotenv
+tavily-python
+torch
+transformers
+uvicorn
