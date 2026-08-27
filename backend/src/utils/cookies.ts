@@ -14,6 +14,9 @@ function baseOptions() {
     secure: isProduction,
     // Cross-site XHR only carries the cookie when SameSite is None, which requires Secure.
     sameSite: isProduction ? ("none" as const) : ("lax" as const),
+    // Sharing a registrable domain (e.g. api.example.com + app.example.com) keeps
+    // the cookie same-site, which iOS Safari's ITP does not block like it does None cookies.
+    ...(env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {}),
   };
 }
 
