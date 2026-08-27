@@ -6,6 +6,7 @@ import {
   createConversation,
 } from "../services/conversation.service.js";
 import { prepareMessages } from "../utils/prepareMessages.js";
+import { appendStreamChunk } from "../utils/appendStreamChunk.js";
 import type {
   ApiError,
   ChatMessage,
@@ -219,12 +220,7 @@ export async function streamChat(
     }
     if (conversation) activeConversations.add(conversation.id);
     if (conversation) {
-      await appendMessage(
-        userId,
-        conversation.id,
-        "user",
-        originalUserMessage,
-      );
+      await appendMessage(userId, conversation.id, "user", originalUserMessage);
     }
   } catch (error) {
     if (conversation) activeConversations.delete(conversation.id);
@@ -279,7 +275,8 @@ export async function streamChat(
       const content = chunk.message?.content ?? "";
       if (content) {
         const type = chunk.eventType ?? "content";
-        if (type === "content") assistantText += content;
+        if (type === "content")
+          assistantText = appendStreamChunk(assistantText, content);
         response.write(
           `data: ${JSON.stringify({ model: chunk.model, content, type })}\n\n`,
         );
