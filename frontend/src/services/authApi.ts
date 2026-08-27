@@ -5,8 +5,11 @@ import type { AuthUser } from "../types/auth.types";
 interface AuthResponse {
   success: true;
   user: AuthUser;
-  accessToken?: string;
-  refreshToken?: string;
+}
+
+interface SessionResponse extends AuthResponse {
+  accessToken: string;
+  refreshToken: string;
 }
 
 export async function signup(
@@ -14,7 +17,7 @@ export async function signup(
   email: string,
   password: string,
 ): Promise<AuthUser> {
-  const data = await apiJson<AuthResponse>("/api/auth/signup", {
+  const data = await apiJson<SessionResponse>("/api/auth/signup", {
     method: "POST",
     body: JSON.stringify({ name, email, password }),
   });
@@ -26,7 +29,7 @@ export async function login(
   email: string,
   password: string,
 ): Promise<AuthUser> {
-  const data = await apiJson<AuthResponse>("/api/auth/login", {
+  const data = await apiJson<SessionResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
