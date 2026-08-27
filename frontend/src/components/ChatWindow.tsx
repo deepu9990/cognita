@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bot, Ghost, Menu, WandSparkles } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import { fetchHealthStatus, fetchModels, streamChat } from "../services/chatApi";
+import {
+  fetchHealthStatus,
+  fetchModels,
+  streamChat,
+} from "../services/chatApi";
 import { getConversation } from "../services/conversationApi";
 import { useConversations } from "../hooks/useConversations";
 import type { ChatMessage, ModelInfo } from "../types/chat.types";
@@ -13,6 +17,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { TypingIndicator } from "./TypingIndicator";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
+import { appendStreamChunk } from "../lib/utils";
 
 const suggestions = [
   "Explain JavaScript closures",
@@ -168,8 +173,20 @@ export function ChatWindow() {
             current.map((message) =>
               message.id === assistantMessage.id
                 ? chunk.type === "thinking"
-                  ? { ...message, thinking: (message.thinking ?? "") + chunk.content }
-                  : { ...message, content: message.content + chunk.content }
+                  ? {
+                      ...message,
+                      thinking: appendStreamChunk(
+                        message.thinking ?? "",
+                        chunk.content,
+                      ),
+                    }
+                  : {
+                      ...message,
+                      content: appendStreamChunk(
+                        message.content,
+                        chunk.content,
+                      ),
+                    }
                 : message,
             ),
           );
