@@ -392,6 +392,40 @@ export class InferenceService {
       }
     }
   }
+
+  /**
+   * Asks the LLM to produce a short, creative conversation title
+   * based on the user's first message and (optionally) the assistant reply.
+   * Returns null if the call fails so the caller can fall back gracefully.
+   */
+  async generateTitle(
+    userMessage: string,
+    assistantReply?: string,
+  ): Promise<string | null> {
+    const prompt = [
+      "Generate a short, creative title (max 8 words) for a conversation that starts with this message.",
+      "Reply with ONLY the title text. No quotes, no punctuation at the end, no explanation.",
+      "",
+      `User: ${userMessage.slice(0, 500)}`,
+      ...(assistantReply
+        ? [`Assistant: ${assistantReply.slice(0, 300)}`]
+        : []),
+    ].join("\n");
+
+    try {
+      const response = await this.chat(
+        [{ role: "user", content: prompt }],
+        this.model,
+      );
+      const title = (response.message?.content ?? "")
+        .replace(/^["']+|["']+$/g, "")
+        .replace(/\.+$/, "")
+        .trim();
+      return title && title.length <= 80 ? title : null;
+    } catch {
+      return null;
+    }
+  }
 }
 
 export const inferenceService = new InferenceService();

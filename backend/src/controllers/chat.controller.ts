@@ -4,6 +4,7 @@ import {
   appendMessage,
   assertConversationOwner,
   createConversation,
+  renameConversation,
 } from "../services/conversation.service.js";
 import { prepareMessages } from "../utils/prepareMessages.js";
 import { appendStreamChunk } from "../utils/appendStreamChunk.js";
@@ -295,6 +296,23 @@ export async function streamChat(
 
     await persistAssistant();
     if (!clientDisconnected) {
+      // Generate a creative LLM title for brand-new conversations
+      if (conversation?.title && assistantText.trim()) {
+        try {
+          const generatedTitle = await inferenceService.generateTitle(
+            originalUserMessage,
+            assistantText.slice(0, 300),
+          );
+          if (generatedTitle) {
+            await renameConversation(userId, conversation.id, generatedTitle);
+            response.write(
+              `event: title\ndata: ${JSON.stringify({ conversationId: conversation.id, title: generatedTitle })}\n\n`,
+            );
+          }
+        } catch {
+          // Title generation is best-effort; keep the fallback title
+        }
+      }
       response.write("data: [DONE]\n\n");
       response.end();
     }

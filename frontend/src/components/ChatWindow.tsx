@@ -34,7 +34,7 @@ function makeId(): string {
 export function ChatWindow() {
   const { conversationId } = useParams<{ conversationId: string }>();
   const navigate = useNavigate();
-  const { conversations, loading, refresh, remove, rename } =
+  const { conversations, loading, refresh, upsert, remove, rename } =
     useConversations();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -167,6 +167,16 @@ export function ChatWindow() {
         signal: nextController.signal,
         onMeta: (meta) => {
           if (!conversationId) createdConversationId = meta.conversationId;
+        },
+        onTitle: (update) => {
+          // Update the sidebar conversation list with the LLM-generated title
+          upsert({
+            id: update.conversationId,
+            title: update.title,
+            model: selectedModelId,
+            lastMessageAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
         },
         onChunk: (chunk) => {
           receivedAssistantContent = true;

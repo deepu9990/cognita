@@ -19,12 +19,18 @@ export interface StreamMeta {
   title?: string;
 }
 
+export interface StreamTitleUpdate {
+  conversationId: string;
+  title: string;
+}
+
 export interface StreamOptions {
   conversationId?: string;
   temporary?: boolean;
   model: string;
   onChunk: (chunk: ChatStreamChunk) => void;
   onMeta?: (meta: StreamMeta) => void;
+  onTitle?: (update: StreamTitleUpdate) => void;
   signal?: AbortSignal;
 }
 
@@ -65,7 +71,7 @@ export async function streamChat(
   messages: ChatMessage[],
   options: StreamOptions,
 ): Promise<void> {
-  const { conversationId, temporary, model, onChunk, onMeta, signal } = options;
+  const { conversationId, temporary, model, onChunk, onMeta, onTitle, signal } = options;
 
   const response = await apiFetch("/api/chat/stream", {
     method: "POST",
@@ -107,6 +113,10 @@ export async function streamChat(
         }
         if (event.includes("event: meta")) {
           onMeta?.(JSON.parse(data) as StreamMeta);
+          continue;
+        }
+        if (event.includes("event: title")) {
+          onTitle?.(JSON.parse(data) as StreamTitleUpdate);
           continue;
         }
         const parsed = JSON.parse(data) as ChatStreamChunk & { error?: string };
