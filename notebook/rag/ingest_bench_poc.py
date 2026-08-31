@@ -1,0 +1,138 @@
+import os
+import sys
+import io
+import json
+import zipfile
+import urllib.request
+from typing import Dict, List, Tuple
+from dotenv import load_dotenv
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+load_dotenv()
+
+from rag.database import get_vector_store
+from rag.ingestion import ingest_document
+from rag.permissions import DocumentPermission
+from rag.retriever import Retriever
+from rag.schemas import UserContext
+
+# Slices chosen for small download footprint (< 2.6 MB total) and diverse enterprise types
+BENCH_SLICES: List[Tuple[str, str, int]] = [
+    (
+        "confluence",
+        "https://github.com/onyx-dot-app/EnterpriseRAG-Bench/releases/download/v1.0.0/confluence_slice_0002.zip",
+        100,  # Pick 100 confluence docs (runbooks, playbooks, wikis)
+    ),
+    (
+        "fireflies",
+        "https://github.com/onyx-dot-app/EnterpriseRAG-Bench/releases/download/v1.0.0/fireflies_slice_0003.zip",
+        45,  # Pick 45 meeting transcripts
+    ),
+    (
+        "linear",
+        "https://github.com/onyx-dot-app/EnterpriseRAG-Bench/releases/download/v1.0.0/linear_slice_0008.zip",
+        40,  # Pick 40 engineering/product tickets
+    ),
+    (
+        "hubspot",
+        "https://github.com/onyx-dot-app/EnterpriseRAG-Bench/releases/download/v1.0.0/hubspot_slice_0004.zip",
+        15,  # Pick 15 CRM/sales customer records
+    ),
+]
+
+
+def extract_title_from_text(content: str, filename: str) -> str:
+    """Extract first non-empty line or clean filename as document title."""
+    for line in content.splitlines():
+        line = line.strip().strip("#").strip()
+        if line and len(line) > 3:
+            return line[:200]
+    # Fallback to readable filename
+    clean_name = os.path.splitext(os.path.basename(filename))[0]
+    if "__" in clean_name:
+        clean_name = clean_name.split("__", 1)[1]
+    return clean_name.replace("-", " ").replace("_", " ").title()
+
+
+def ingest_enterprise_benchmark(
+    target_count: int = 200,
+    org_id: str = "redwood",
+    data_dir: str = None,
+):
+    vs = get_vector_store()
+    if not vs.is_available():
+        print("Error: PostgreSQL/pgvector database is not available. Check DATABASE_URL.", file=sys.stderr)
+        return
+
+    base_dir = data_dir or os.path.join(os.path.dirname(__file__), "..", "data", "bench")
+    os.makedirs(base_dir, exist_ok=True)
+
+    print(f"[*] Starting EnterpriseRAG-Bench POC ingestion ({target_count} documents)...", flush=True)
+    print(f"[*] Target Organization: '{org_id}'", flush=True)
+
+    total_ingested = 0
+
+    for source_type, url, count_to_take in BENCH_SLICES:
+        if total_ingested >= target_count:
+            break
+
+        needed = min(count_to_take, target_count - total_ingested)
+        print(f"\n[-] Downloading {source_type} slice from {url}...", flush=True)
+
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Cognita-Bench-Ingester/1.0"})
+            with urllib.request.urlopen(req) as resp:
+                zip_data = resp.read()
+
+            with zipfile.ZipFile(io.BytesIO(zip_data)) as z:
+                all_files = [f for f in z.namelist() if not f.endswith("/") and not f.startswith("__MACOSX")]
+                selected_files = all_files[:needed]
+                print(f"[*] Selected {len(selected_files)} documents from {source_type} (archive has {len(all_files)})", flush=True)
+
+                for idx, fname in enumerate(selected_files, 1):
+                    raw_text = z.read(fname).decode("utf-8", errors="ignore")
+                    title = extract_title_from_text(raw_text, fname)
+
+                    # Save local copy for reference
+                    local_fname = os.path.basename(fname)
+                    local_path = os.path.join(base_dir, local_fname)
+                    with open(local_path, "w", encoding="utf-8") as f:
+                        f.write(raw_text)
+
+                    # Determine department by source type
+                    dept = "Engineering" if source_type in ("github", "linear") else ("Sales" if source_type == "hubspot" else "All")
+                    permissions = DocumentPermission(
+                        organization_id=org_id,
+                        is_public=True,
+                        allowed_departments=[dept, "All"],
+                        allowed_roles=["*"],
+                    )
+
+                    res = ingest_document(
+                        file_path=local_path,
+                        organization_id=org_id,
+                        title=title,
+                        version="v1",
+                        permissions=permissions,
+                        vector_store=vs,
+                    )
+                    total_ingested += 1
+                    print(
+                        f"  [{total_ingested}/{target_count}] ({source_type}) {title[:50]}... "
+                        f"-> {res.chunk_count} chunk(s)",
+                        flush=True,
+                    )
+
+                    if total_ingested >= target_count:
+                        break
+
+        except Exception as err:
+            print(f"⚠️ Error processing slice {source_type}: {err}", flush=True)
+
+    print(f"\n[DONE] Successfully ingested {total_ingested} EnterpriseRAG documents into Supabase!", flush=True)
+
+
+if __name__ == "__main__":
+    count = int(sys.argv[1]) if len(sys.argv) > 1 else 200
+    ingest_enterprise_benchmark(target_count=count)
+
