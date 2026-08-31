@@ -28,6 +28,25 @@ def start_uvicorn():
 
 
 def main():
+    # 0. Load secrets from Kaggle or .env and report which keys are set
+    SECRET_KEYS = [
+        "NGROK_AUTHTOKEN",
+        "TAVILY_API_KEY",
+        "DATABASE_URL",
+        "HF_TOKEN",
+        "MODELS_TO_LOAD",
+    ]
+    for key in SECRET_KEYS:
+        val = get_secret(key)
+        if val:
+            os.environ.setdefault(key, val)
+
+    loaded = [k for k in SECRET_KEYS if os.getenv(k)]
+    missing = [k for k in SECRET_KEYS if not os.getenv(k)]
+    print("🔑 Loaded secrets:", ", ".join(loaded) if loaded else "(none)", flush=True)
+    if missing:
+        print("   Missing (optional):", ", ".join(missing), flush=True)
+
     # 1. Start FastAPI server in a background daemon thread
     print("🚀 Starting Cognita AI server in background thread...", flush=True)
     server_thread = threading.Thread(target=start_uvicorn, daemon=True)
