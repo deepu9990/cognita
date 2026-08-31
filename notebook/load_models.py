@@ -82,7 +82,6 @@ def load_model(model_id: str) -> None:
     try:
         models[model_id] = AutoModelForCausalLM.from_pretrained(
             config["name"],
-            trust_remote_code=True,
             **kwargs,
         )
         tokenizers[model_id] = tokenizer

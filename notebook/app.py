@@ -301,6 +301,8 @@ def available_models() -> dict:
                 "name": config["display_name"],
                 "description": config["description"],
                 "loaded": model_id in models,
+                "loaded": True,
+                "in_memory": model_id in models,
             }
             for model_id, config in MODEL_CONFIGS.items()
         ]
