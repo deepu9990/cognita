@@ -2,10 +2,11 @@ import os
 
 try:
     import torch
-    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+    from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
     TORCH_AVAILABLE = True
 except ImportError:
     torch = None
+    AutoConfig = None
     AutoModelForCausalLM = None
     AutoTokenizer = None
     BitsAndBytesConfig = None
@@ -23,6 +24,12 @@ MODEL_CONFIGS = {
         "name": "Qwen/Qwen3.5-9B",
         "display_name": "Qwen 3.5 9B",
         "description": "Stronger reasoning and general-purpose model",
+        "quantized": True,
+    },
+    "qwen2.5-7b": {
+        "name": "Qwen/Qwen2.5-7B-Instruct",
+        "display_name": "Qwen 2.5 7B Instruct",
+        "description": "Official Qwen 2.5 7B instruction-tuned model",
         "quantized": True,
     },
 }
@@ -50,22 +57,39 @@ def load_model(model_id: str) -> None:
         return
 
     config = MODEL_CONFIGS[model_id]
-    print(f"Loading {config['display_name']} ({config['name']})", flush=True)
+    print(f"Loading {config['display_name']} ({config['name']})...", flush=True)
 
-    tokenizer = AutoTokenizer.from_pretrained(config["name"])
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(
+            config["name"],
+            trust_remote_code=True,
+        )
+    except Exception as err:
+        print(f"⚠️ Failed to load tokenizer for {model_id}: {err}", flush=True)
+        raise
+
     kwargs = {
         "device_map": "auto",
-        "torch_dtype": torch.float16 if (torch and torch.cuda.is_available()) else torch.float32,
+        "trust_remote_code": True,
     }
+
+    if torch and torch.cuda.is_available():
+        kwargs["torch_dtype"] = torch.float16
+
     if config["quantized"] and QUANTIZATION_CONFIG:
         kwargs["quantization_config"] = QUANTIZATION_CONFIG
 
-    models[model_id] = AutoModelForCausalLM.from_pretrained(
-        config["name"],
-        **kwargs,
-    )
-    tokenizers[model_id] = tokenizer
-    print(f"{config['display_name']} loaded", flush=True)
+    try:
+        models[model_id] = AutoModelForCausalLM.from_pretrained(
+            config["name"],
+            trust_remote_code=True,
+            **kwargs,
+        )
+        tokenizers[model_id] = tokenizer
+        print(f"✅ {config['display_name']} loaded successfully", flush=True)
+    except Exception as err:
+        print(f"⚠️ Failed to load model weights for {model_id}: {err}", flush=True)
+        raise
 
 
 def load_configured_models() -> None:
@@ -73,8 +97,12 @@ def load_configured_models() -> None:
     for model_id in (model.strip() for model in requested_models):
         if model_id:
             if model_id not in MODEL_CONFIGS:
-                raise ValueError(f"Unknown model in MODELS_TO_LOAD: {model_id}")
-            load_model(model_id)
+                print(f"⚠️ Unknown model in MODELS_TO_LOAD: {model_id}", flush=True)
+                continue
+            try:
+                load_model(model_id)
+            except Exception as err:
+                print(f"⚠️ Skipping model '{model_id}' due to loading error: {err}", flush=True)
 
 
 def load_embedding_model() -> None:

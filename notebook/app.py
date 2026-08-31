@@ -56,8 +56,11 @@ load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    load_configured_models()
-    load_embedding_model()
+    try:
+        load_configured_models()
+        load_embedding_model()
+    except Exception as err:
+        logger.warning(f"Error during model startup loading: {err}")
     yield
 
 
