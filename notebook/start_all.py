@@ -1,4 +1,5 @@
 import os
+import sys
 import threading
 import time
 import requests
@@ -6,6 +7,8 @@ import uvicorn
 from dotenv import load_dotenv
 from pyngrok import ngrok
 
+# Load .env from local directory if present
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 load_dotenv()
 
 
@@ -27,8 +30,19 @@ def start_uvicorn():
     uvicorn.run("app:app", host=host, port=port, log_level="info")
 
 
-def main():
-    # 0. Load secrets from Kaggle or .env and report which keys are set
+_server_thread = None
+_public_url = None
+
+
+def start_background(wait_for_exit: bool = False) -> str:
+    """Start Cognita AI FastAPI server & Ngrok tunnel.
+
+    In Jupyter / Kaggle notebooks: call with wait_for_exit=False (default)
+    to run in the background without blocking notebook cells!
+    """
+    global _server_thread, _public_url
+
+    # 0. Load secrets from Kaggle Secrets or .env
     SECRET_KEYS = [
         "NGROK_AUTHTOKEN",
         "TAVILY_API_KEY",
@@ -48,9 +62,12 @@ def main():
         print("   Missing (optional):", ", ".join(missing), flush=True)
 
     # 1. Start FastAPI server in a background daemon thread
-    print("🚀 Starting Cognita AI server in background thread...", flush=True)
-    server_thread = threading.Thread(target=start_uvicorn, daemon=True)
-    server_thread.start()
+    if _server_thread is None or not _server_thread.is_alive():
+        print("🚀 Starting Cognita AI server in background thread...", flush=True)
+        _server_thread = threading.Thread(target=start_uvicorn, daemon=True)
+        _server_thread.start()
+    else:
+        print("ℹ️ Server thread is already running.", flush=True)
 
     # 2. Poll /health until server is ready
     port = int(os.getenv("PORT", "8000"))
@@ -58,7 +75,7 @@ def main():
     print("⏳ Waiting for models to load and server to become healthy...", flush=True)
 
     is_ready = False
-    for attempt in range(60):
+    for attempt in range(90):
         try:
             res = requests.get(health_url, timeout=3)
             if res.status_code == 200:
@@ -79,7 +96,7 @@ def main():
     token = get_secret("NGROK_AUTHTOKEN")
     if not token or token == "your-ngrok-auth-token":
         print("❌ NGROK_AUTHTOKEN is missing. Set it in Kaggle Secrets or .env.", flush=True)
-        return
+        return ""
 
     ngrok.set_auth_token(token)
 
@@ -91,22 +108,45 @@ def main():
             pass
 
     public_tunnel = ngrok.connect(addr=port, proto="http")
+    _public_url = public_tunnel.public_url
 
     print("\n" + "=" * 65, flush=True)
-    print(f"🎉 COGNITA PUBLIC URL: {public_tunnel.public_url}", flush=True)
+    print(f"🎉 COGNITA PUBLIC URL: {_public_url}", flush=True)
     print("=" * 65, flush=True)
     print("📋 Paste this into your backend's .env file:", flush=True)
-    print(f"INFERENCE_HOST={public_tunnel.public_url}", flush=True)
+    print(f"INFERENCE_HOST={_public_url}", flush=True)
     print("=" * 65, flush=True)
-    print("⚡ Server and tunnel are active! Keep this Kaggle cell running.", flush=True)
-    print("=" * 65 + "\n", flush=True)
 
-    # Keep the main thread alive so the background server and tunnel stay online
+    if wait_for_exit:
+        print("⚡ Server and tunnel are active! (Blocking main thread - press Ctrl+C to stop)", flush=True)
+        print("=" * 65 + "\n", flush=True)
+        try:
+            ngrok_process = ngrok.get_ngrok_process()
+            ngrok_process.proc.wait()
+        except (KeyboardInterrupt, SystemExit):
+            print("\nShutting down Cognita server and tunnel...", flush=True)
+    else:
+        print("⚡ Server and tunnel running in background! Notebook cell is unblocked.", flush=True)
+        print("   You can now run ingestion and benchmark cells below.", flush=True)
+        print("=" * 65 + "\n", flush=True)
+
+    return _public_url
+
+
+def stop_all():
+    """Stop ngrok tunnels and background server."""
+    print("Shutting down ngrok tunnels...", flush=True)
     try:
-        ngrok_process = ngrok.get_ngrok_process()
-        ngrok_process.proc.wait()
-    except (KeyboardInterrupt, SystemExit):
-        print("\nShutting down Cognita server and tunnel...", flush=True)
+        ngrok.kill()
+        print("✅ Ngrok stopped.", flush=True)
+    except Exception as e:
+        print(f"Error stopping ngrok: {e}", flush=True)
+
+
+def main():
+    # If run as CLI script: block by default unless --no-wait or --background is passed
+    no_wait = "--no-wait" in sys.argv or "--background" in sys.argv
+    start_background(wait_for_exit=not no_wait)
 
 
 if __name__ == "__main__":

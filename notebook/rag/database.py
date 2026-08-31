@@ -545,17 +545,28 @@ class InMemoryVectorStore(VectorStoreInterface):
 _global_vector_store: Optional[VectorStoreInterface] = None
 
 
-def get_vector_store(store_type: Optional[str] = None) -> VectorStoreInterface:
+def get_vector_store(
+    store_type: Optional[str] = None,
+    database_url: Optional[str] = None,
+    force_refresh: bool = False,
+) -> VectorStoreInterface:
     global _global_vector_store
-    if _global_vector_store is not None and store_type is None:
+    if (
+        _global_vector_store is not None
+        and store_type is None
+        and not force_refresh
+        and database_url is None
+        and _global_vector_store.is_available()
+    ):
         return _global_vector_store
 
     cfg = get_rag_config()
+    db_url = database_url or os.getenv("DATABASE_URL") or cfg.database_url
     if store_type == "memory":
         return InMemoryVectorStore()
 
-    if cfg.database_url:
-        _global_vector_store = PgVectorStore(cfg.database_url)
+    if db_url:
+        _global_vector_store = PgVectorStore(db_url)
     else:
         # Default when no DATABASE_URL is provided: PgVectorStore initialized with None (is_available() -> False)
         _global_vector_store = PgVectorStore(None)
