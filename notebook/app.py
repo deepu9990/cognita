@@ -28,6 +28,7 @@ from load_models import (
     MODEL_CONFIGS,
     load_configured_models,
     load_embedding_model,
+    load_model,
     models,
     tokenizers,
 )
@@ -431,9 +432,19 @@ def reindex_document(
 @app.post("/chat")
 def chat(request: ChatRequest) -> StreamingResponse:
     if request.model not in models:
-        # Check if running in mock/test mode without loaded models
-        if not models:
+        if request.model in MODEL_CONFIGS and TORCH_AVAILABLE:
+            try:
+                logger.info(f"Loading model '{request.model}' on-demand...")
+                load_model(request.model)
+            except Exception as err:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to load model '{request.model}' on-demand: {err}",
+                )
+        elif not models:
             raise HTTPException(status_code=400, detail=f"Model is not loaded: {request.model}")
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown model: {request.model}")
 
     messages = [message.model_dump() for message in request.messages]
     user_query = latest_user_message(messages)

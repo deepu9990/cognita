@@ -78,9 +78,17 @@ def main():
     print("=" * 65, flush=True)
     print("📋 Paste this into your backend's .env file:", flush=True)
     print(f"INFERENCE_HOST={public_tunnel.public_url}", flush=True)
+    print("=" * 65, flush=True)
+    print("⚡ Server and tunnel are active! Keep this Kaggle cell running.", flush=True)
     print("=" * 65 + "\n", flush=True)
+
+    # Keep the main thread alive so the background server and tunnel stay online
+    try:
+        ngrok_process = ngrok.get_ngrok_process()
+        ngrok_process.proc.wait()
+    except (KeyboardInterrupt, SystemExit):
+        print("\nShutting down Cognita server and tunnel...", flush=True)
 
 
 if __name__ == "__main__":
     main()
-
