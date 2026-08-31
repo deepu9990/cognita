@@ -70,6 +70,7 @@ def load_model(model_id: str) -> None:
 
 def load_configured_models() -> None:
     requested_models = os.getenv("MODELS_TO_LOAD", "qwen3-4b").split(",")
+    requested_models = os.getenv("MODELS_TO_LOAD", "qwen3-4b,qwen3.5-9b").split(",")
     for model_id in (model.strip() for model in requested_models):
         if model_id:
             if model_id not in MODEL_CONFIGS:
