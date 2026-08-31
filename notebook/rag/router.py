@@ -17,11 +17,19 @@ FRESHNESS_PATTERN = re.compile(
 )
 
 COMPANY_PATTERN = re.compile(
-    r"\b(our policy|company policy|our company|leave policy|handbook|employee handbook|"
+    r"\b("
+    r"our policy|company policy|our company|leave policy|handbook|employee handbook|"
     r"casual leave|sick leave|parental leave|maternity|paternity|vacation policy|"
     r"hr policy|reimbursement|travel policy|code of conduct|internal wiki|"
     r"internal docs|internal policy|onboarding|wfh policy|remote work policy|"
-    r"expense policy|appraisal|nda|posh|insurance coverage|salary slip|notice period)\b",
+    r"expense policy|appraisal|nda|posh|insurance coverage|salary slip|notice period|"
+    # EnterpriseRAG-Bench & technical company runbook terms
+    r"canary|quantization|quant profile|quant_profile|optimization config|eval plan|eval_plan|eval harness|"
+    r"baseline reference|baseline_reference|promotion criteria|known-good|known good|"
+    r"pass rate delta|pass-rate delta|pass rate|pass-rate|rollback|safe apply|"
+    r"hosted canary|dedicated canary|redwood|cluster-alpha|cluster-beta|cluster-gamma|"
+    r"company documentation|company knowledge|internal documentation|who owns|who is responsible"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -53,4 +61,3 @@ class QueryRouter:
             return RouteType.WEB_SEARCH
         else:
             return RouteType.DIRECT_LLM
-

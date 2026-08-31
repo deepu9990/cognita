@@ -38,7 +38,7 @@ class Retriever:
         # If user context is not provided, use default public organization context
         effective_context = user_context or UserContext(
             user_id="anonymous",
-            organization_id="default_org",
+            organization_id=self.config.default_organization_id,
             department=None,
             roles=[],
         )

@@ -15,7 +15,8 @@ class RagConfig:
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "500"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "100"))
     rag_top_k: int = int(os.getenv("RAG_TOP_K", "4"))
-    rag_min_score: float = float(os.getenv("RAG_MIN_SCORE", "0.5"))
+    rag_min_score: float = float(os.getenv("RAG_MIN_SCORE", "0.35"))
+    default_organization_id: str = os.getenv("DEFAULT_ORG_ID", "redwood")
 
 
 def get_rag_config() -> RagConfig:

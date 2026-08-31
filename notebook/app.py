@@ -460,10 +460,11 @@ def chat(request: ChatRequest) -> StreamingResponse:
     logger.info(f"Routed chat query '{user_query[:50]}' to {route.value}")
 
     user_context = request.user_context
-    if user_context is None and request.organization_id:
+    if user_context is None:
+        org_id = request.organization_id or get_rag_config().default_organization_id
         user_context = UserContext(
             user_id="request_user",
-            organization_id=request.organization_id,
+            organization_id=org_id,
             department=None,
             roles=[],
         )
