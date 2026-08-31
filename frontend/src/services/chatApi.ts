@@ -71,7 +71,8 @@ export async function streamChat(
   messages: ChatMessage[],
   options: StreamOptions,
 ): Promise<void> {
-  const { conversationId, temporary, model, onChunk, onMeta, onTitle, signal } = options;
+  const { conversationId, temporary, model, onChunk, onMeta, onTitle, signal } =
+    options;
 
   const response = await apiFetch("/api/chat/stream", {
     method: "POST",

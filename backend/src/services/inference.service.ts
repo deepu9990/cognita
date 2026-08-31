@@ -407,9 +407,7 @@ export class InferenceService {
       "Reply with ONLY the title text. No quotes, no punctuation at the end, no explanation.",
       "",
       `User: ${userMessage.slice(0, 500)}`,
-      ...(assistantReply
-        ? [`Assistant: ${assistantReply.slice(0, 300)}`]
-        : []),
+      ...(assistantReply ? [`Assistant: ${assistantReply.slice(0, 300)}`] : []),
     ].join("\n");
 
     try {
