@@ -11,5 +11,5 @@ python-multipart
 sentence-transformers
 tavily-python
 torch
-transformers>=4.48.0
+transformers>=5.2.0
 uvicorn
