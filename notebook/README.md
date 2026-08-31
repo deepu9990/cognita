@@ -31,7 +31,20 @@ FastAPI Service
 
 ---
 
-## Setup
+## Quick Start on Kaggle (Single Non-Blocking Command)
+
+1. Upload or clone the `notebook/` directory to Kaggle (or open `cognita.ipynb`).
+2. Turn on **GPU accelerator** (T4, P100, or A100).
+3. Add `NGROK_AUTHTOKEN` in **Kaggle Secrets** (`Add-ons` -> `Secrets`).
+4. Run in a single cell:
+   ```python
+   !pip install -q -r requirements.txt && python start_all.py
+   ```
+   This automatically loads the models, starts the FastAPI server in a background thread, starts the ngrok tunnel, and prints your public URL!
+
+---
+
+## Setup & Environment
 
 Use Python 3.10 or newer and a CUDA-compatible PyTorch installation for GPU inference.
 
@@ -71,41 +84,6 @@ To enable RAG storage and vector retrieval:
    psql $DATABASE_URL -f rag/migrations/001_initial_schema.sql
    ```
 3. Set `DATABASE_URL` in `notebook/.env`.
-
----
-
-## Google Colab Workflow
-
-In Google Colab, execute cells in order:
-
-### Cell 1: Install Dependencies
-```python
-!pip install -r requirements.txt
-```
-
-### Cell 2: Load Qwen Model
-```python
-from load_models import load_model
-load_model("qwen3-4b")
-```
-
-### Cell 3: Load Embedding Model
-```python
-from load_models import load_embedding_model
-load_embedding_model()
-```
-
-### Cell 4: Run FastAPI Server
-```python
-!python run_server.py
-```
-
-### Cell 5: Start Ngrok Tunnel
-```python
-!python start_tunnel.py
-```
-
-Copy the generated ngrok URL and paste it into `OLLAMA_HOST` in `backend/.env`.
 
 ---
 
