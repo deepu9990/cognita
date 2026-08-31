@@ -1,6 +1,35 @@
-# Cognita GPU Notebook Service
+# Cognita GPU Notebook & RAG Service
 
-This folder contains the FastAPI inference service used when Cognita runs models on a GPU notebook or another machine. It implements the endpoint contract expected by the Node backend: `GET /health`, `GET /models`, and `POST /chat` with Server-Sent Events.
+This folder contains the FastAPI inference and RAG service used when Cognita runs models on a GPU notebook (Google Colab, Kaggle) or a local machine. It implements:
+- `GET /health` (Model, CUDA, Tavily, and RAG database status)
+- `GET /models` (Available causal LM models)
+- `POST /chat` (SSE streaming with deterministic routing across Company RAG, Web Search, Both, and Direct LLM)
+- `POST /rag/search` (Permission-aware vector search)
+- `POST /documents`, `GET /documents`, `GET /documents/{id}`, `DELETE /documents/{id}`, `POST /documents/{id}/reindex` (Document ingestion and management)
+
+---
+
+## Architecture Overview
+
+```text
+React Frontend
+      ↓ (SSE)
+Node / Express Backend
+      ↓ (SSE)
+FastAPI Service
+      ↓
+ Query Router
+ ├── COMPANY_RAG  →  Retriever → PgVector (PostgreSQL + pgvector) → Structured RAG Context
+ ├── WEB_SEARCH   →  Tavily API
+ ├── BOTH         →  RAG Context + Tavily Tool Result
+ └── DIRECT_LLM   →  Direct Inference
+      ↓
+ Qwen3-4B on GPU
+      ↓
+ SSE Stream: [status, thinking, sources, content, done]
+```
+
+---
 
 ## Setup
 
@@ -19,41 +48,71 @@ Set these values in `.env`:
 ```env
 NGROK_AUTHTOKEN=your-ngrok-auth-token
 TAVILY_API_KEY=your-tavily-api-key
+DATABASE_URL=postgresql://user:password@host:5432/cognita_rag
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+EMBEDDING_DIMENSION=384
+CHUNK_SIZE=500
+CHUNK_OVERLAP=100
+RAG_TOP_K=4
+RAG_MIN_SCORE=0.5
 ```
 
-`TAVILY_API_KEY` enables searches for current or time-sensitive questions. The file is ignored by Git. In Kaggle, the scripts also fall back to secrets with the same names.
+> **Note**: If `DATABASE_URL` is empty, FastAPI and normal Qwen inference continue to work normally, and `/health` reports `"rag": {"available": false}`.
 
-## Run locally
+---
 
-Start the API. Model loading happens once during application startup.
+## Database Setup (PostgreSQL + pgvector)
 
-```powershell
-python run_server.py
+To enable RAG storage and vector retrieval:
+
+1. Create a PostgreSQL database (e.g. locally, Supabase, Neon, or RDS) with `pgvector` enabled.
+2. Run the migration script:
+   ```bash
+   psql $DATABASE_URL -f rag/migrations/001_initial_schema.sql
+   ```
+3. Set `DATABASE_URL` in `notebook/.env`.
+
+---
+
+## Google Colab Workflow
+
+In Google Colab, execute cells in order:
+
+### Cell 1: Install Dependencies
+```python
+!pip install -r requirements.txt
 ```
 
-Confirm that it started:
-
-```powershell
-Invoke-RestMethod http://localhost:8000/health
+### Cell 2: Load Qwen Model
+```python
+from load_models import load_model
+load_model("qwen3-4b")
 ```
 
-In another terminal, expose it through ngrok:
-
-```powershell
-python start_tunnel.py
+### Cell 3: Load Embedding Model
+```python
+from load_models import load_embedding_model
+load_embedding_model()
 ```
 
-Copy the printed public URL to `OLLAMA_HOST` in the root backend's `.env`. For a public ngrok domain, the backend automatically uses the FastAPI protocol and provides the ngrok warning-skip header.
+### Cell 4: Run FastAPI Server
+```python
+!python run_server.py
+```
 
-## Kaggle notebook
+### Cell 5: Start Ngrok Tunnel
+```python
+!python start_tunnel.py
+```
 
-Install the same dependencies in a notebook cell, then either upload this folder or run its files from a mounted dataset. Store `NGROK_AUTHTOKEN` and `TAVILY_API_KEY` as Kaggle secrets. Run the server in one notebook cell and the tunnel launcher in another; the launcher reads Kaggle secrets when `.env` is unavailable.
+Copy the generated ngrok URL and paste it into `OLLAMA_HOST` in `backend/.env`.
 
-## Model configuration
+---
 
-Models live in `load_models.py`. `MODELS_TO_LOAD` controls what startup loads, and `DEFAULT_MODEL` selects the model when the client does not send one. Loading both listed models needs substantial VRAM; for a smaller GPU use:
+## Running Unit Tests
 
-```env
-MODELS_TO_LOAD=qwen3-4b
-DEFAULT_MODEL=qwen3-4b
+Run the full suite of unit tests covering document loaders (PDF, DOCX, TXT, MD), chunking, embedding, vector retrieval, tenant isolation, permissions, score thresholding, version selection, routing, and SSE events:
+
+```bash
+python -m unittest discover -s tests -p "test_*.py"
 ```

@@ -7,7 +7,8 @@ import type {
 } from "../types/chat.types";
 
 export interface HealthStatus {
-  ollama: boolean;
+  inference?: boolean;
+  ollama?: boolean;
   model: string;
   connection: "local" | "remote" | "unavailable";
   host: string | null;
@@ -64,8 +65,7 @@ export async function streamChat(
   messages: ChatMessage[],
   options: StreamOptions,
 ): Promise<void> {
-  const { conversationId, temporary, model, onChunk, onMeta, signal } =
-    options;
+  const { conversationId, temporary, model, onChunk, onMeta, signal } = options;
 
   const response = await apiFetch("/api/chat/stream", {
     method: "POST",

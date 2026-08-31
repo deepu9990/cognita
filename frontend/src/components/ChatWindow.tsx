@@ -108,7 +108,8 @@ export function ChatWindow() {
     async function refreshHealth() {
       try {
         const health = await fetchHealthStatus(signalController.signal);
-        if (!health.ollama) {
+        const isOnline = health.inference ?? health.ollama ?? false;
+        if (!isOnline) {
           setConnectionOnline(false);
           setConnectionLabel("Inference unavailable");
           return;
@@ -170,25 +171,34 @@ export function ChatWindow() {
         onChunk: (chunk) => {
           receivedAssistantContent = true;
           setMessages((current) =>
-            current.map((message) =>
-              message.id === assistantMessage.id
-                ? chunk.type === "thinking"
-                  ? {
-                      ...message,
-                      thinking: appendStreamChunk(
-                        message.thinking ?? "",
-                        chunk.content,
-                      ),
-                    }
-                  : {
-                      ...message,
-                      content: appendStreamChunk(
-                        message.content,
-                        chunk.content,
-                      ),
-                    }
-                : message,
-            ),
+            current.map((message) => {
+              if (message.id !== assistantMessage.id) return message;
+              if (chunk.type === "sources" && chunk.sources) {
+                return {
+                  ...message,
+                  sources: chunk.sources,
+                };
+              }
+              if (chunk.type === "thinking") {
+                return {
+                  ...message,
+                  thinking: appendStreamChunk(
+                    message.thinking ?? "",
+                    chunk.content ?? "",
+                  ),
+                };
+              }
+              if (chunk.type === "status") {
+                return message;
+              }
+              return {
+                ...message,
+                content: appendStreamChunk(
+                  message.content,
+                  chunk.content ?? "",
+                ),
+              };
+            }),
           );
         },
       });

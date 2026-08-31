@@ -1,8 +1,14 @@
 accelerate
 bitsandbytes
 fastapi
+pgvector
+psycopg2-binary
 pyngrok
+pypdf
+python-docx
 python-dotenv
+python-multipart
+sentence-transformers
 tavily-python
 torch
 transformers

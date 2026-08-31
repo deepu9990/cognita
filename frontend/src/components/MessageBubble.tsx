@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  BookOpen,
   BrainCircuit,
   ChevronDown,
   Copy,
@@ -133,6 +134,32 @@ export function MessageBubble({
             >
               {displayContent}
             </ReactMarkdown>
+            {message.sources && message.sources.length > 0 && (
+              <div className="mt-4 border-t border-border pt-3">
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                  <BookOpen className="h-3.5 w-3.5 text-primary" />
+                  Sources
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {message.sources.map((src, idx) => (
+                    <div
+                      key={`${message.id}-source-${idx}`}
+                      className="rounded-lg border border-border bg-muted/60 px-3 py-1.5 text-xs text-subtle-foreground"
+                    >
+                      <span className="font-medium text-foreground">
+                        {src.documentTitle}
+                      </span>
+                      {(src.section || src.pageNumber) && (
+                        <span className="ml-1.5 text-muted-foreground">
+                          {src.section ? `${src.section} ` : ""}
+                          {src.pageNumber ? `· Page ${src.pageNumber}` : ""}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         ) : isStreaming ? (
           <span className="text-xs uppercase tracking-[0.11em] text-muted-foreground">

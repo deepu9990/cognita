@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { ollamaService } from "../services/ollama.service.js";
+import { inferenceService } from "../services/inference.service.js";
 import {
   appendMessage,
   assertConversationOwner,
@@ -99,7 +99,7 @@ async function resolveConversation(
   const created = await createConversation(
     userId,
     lastUserMessage(messages),
-    body.model ?? ollamaService.getModel(),
+    body.model ?? inferenceService.getModel(),
   );
   return { id: created.id, title: created.title };
 }
@@ -144,7 +144,7 @@ export async function chat(
   }
 
   try {
-    const result = await ollamaService.chat(messages, model);
+    const result = await inferenceService.chat(messages, model);
     const content = result.message?.content ?? "";
 
     if (conversation && content) {
@@ -269,17 +269,27 @@ export async function streamChat(
       );
     }
 
-    for await (const chunk of ollamaService.stream(messages, model)) {
+    for await (const chunk of inferenceService.stream(messages, model)) {
       if (clientDisconnected) break;
       streamStarted = true;
-      const content = chunk.message?.content ?? "";
-      if (content) {
-        const type = chunk.eventType ?? "content";
-        if (type === "content")
-          assistantText = appendStreamChunk(assistantText, content);
+      const type = chunk.eventType ?? "content";
+      if (type === "sources" && chunk.sources) {
         response.write(
-          `data: ${JSON.stringify({ model: chunk.model, content, type })}\n\n`,
+          `data: ${JSON.stringify({ model: chunk.model, type: "sources", sources: chunk.sources })}\n\n`,
         );
+      } else if (type === "status" && chunk.statusMessage) {
+        response.write(
+          `data: ${JSON.stringify({ model: chunk.model, type: "status", message: chunk.statusMessage })}\n\n`,
+        );
+      } else {
+        const content = chunk.message?.content ?? "";
+        if (content) {
+          if (type === "content")
+            assistantText = appendStreamChunk(assistantText, content);
+          response.write(
+            `data: ${JSON.stringify({ model: chunk.model, content, type })}\n\n`,
+          );
+        }
       }
     }
 
@@ -315,19 +325,20 @@ export async function models(
   _request: Request,
   response: Response,
 ): Promise<void> {
-  response.json({ models: await ollamaService.getModels() });
+  response.json({ models: await inferenceService.getModels() });
 }
 
 export async function health(
   _request: Request,
   response: Response,
 ): Promise<void> {
-  const status = await ollamaService.getAvailabilityDetails();
+  const status = await inferenceService.getAvailabilityDetails();
   response.status(status.available ? 200 : 503).json({
     success: true,
     service: "cognita-backend",
+    inference: status.available,
     ollama: status.available,
-    model: ollamaService.getModel(),
+    model: inferenceService.getModel(),
     connection: status.connection,
     host: status.host,
   });

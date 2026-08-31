@@ -5,11 +5,20 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface SourceItem {
+  documentId: string;
+  documentTitle: string;
+  pageNumber?: number;
+  section?: string;
+  score?: number;
+}
+
 export interface ChatRequestBody {
   model?: string;
   messages: ChatMessage[];
   conversationId?: string;
   temporary?: boolean;
+  organizationId?: string;
 }
 
 export interface ModelInfo {
@@ -35,11 +44,15 @@ export interface ChatRequest {
   model: string;
   messages: ChatMessage[];
   max_new_tokens: number;
+  organization_id?: string;
 }
 
 export interface ChatStreamChunk {
   model: string;
-  content: string;
+  content?: string;
+  type?: "content" | "thinking" | "sources" | "status";
+  sources?: SourceItem[];
+  message?: string;
 }
 
 export interface ChatStreamError {
